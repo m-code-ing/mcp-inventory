@@ -1,55 +1,77 @@
-import axios from 'axios';
-import { Product, ShopifyProduct } from './types';
+import { createAdminApiClient } from '@shopify/admin-api-client';
+import { Product } from './types';
 
 export class ShopifyClient {
-  private baseUrl: string;
-  private headers: Record<string, string>;
+  private client: ReturnType<typeof createAdminApiClient>;
 
   constructor(shopDomain: string, accessToken: string) {
-    this.baseUrl = `https://${shopDomain}/admin/api/2023-10/`;
-    this.headers = {
-      'X-Shopify-Access-Token': accessToken,
-      'Content-Type': 'application/json',
-    };
+    this.client = createAdminApiClient({
+      storeDomain: shopDomain,
+      accessToken,
+      apiVersion: '2023-10',
+    });
   }
 
   async fetchInventory(): Promise<Product[]> {
     const products: Product[] = [];
-    let nextPageInfo: string | null = null;
+    let cursor: string | undefined;
 
     do {
-      const url = nextPageInfo
-        ? `${this.baseUrl}products.json?page_info=${nextPageInfo}&limit=250`
-        : `${this.baseUrl}products.json?limit=250`;
+      const query = `
+        query getProducts($first: Int!, $after: String) {
+          products(first: $first, after: $after) {
+            edges {
+              node {
+                id
+                title
+                status
+                variants(first: 100) {
+                  edges {
+                    node {
+                      id
+                      title
+                      sku
+                      price
+                      inventoryQuantity
+                    }
+                  }
+                }
+              }
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+      `;
 
-      const response = await axios.get(url, { headers: this.headers });
-      const shopifyProducts: ShopifyProduct[] = response.data.products;
+      const response = await this.client.request(query, {
+        variables: { first: 50, after: cursor },
+      });
 
-      for (const product of shopifyProducts) {
-        for (const variant of product.variants) {
+      const { products: productData } = response.data as any;
+
+      for (const edge of productData.edges) {
+        const product = edge.node;
+        for (const variantEdge of product.variants.edges) {
+          const variant = variantEdge.node;
           products.push({
-            id: `shopify_${variant.id}`,
+            id: variant.id,
             title: product.title,
             sku: variant.sku || '',
-            quantity: variant.inventory_quantity || 0,
-            price: parseFloat(variant.price),
+            quantity: variant.inventoryQuantity || 0,
+            price: parseFloat(variant.price) || 0,
             platform: 'shopify',
             variant: variant.title !== 'Default Title' ? variant.title : undefined,
-            status: product.status,
+            status: product.status.toLowerCase(),
           });
         }
       }
 
-      const linkHeader = response.headers.link;
-      nextPageInfo = this.extractNextPageInfo(linkHeader);
-    } while (nextPageInfo);
+      cursor = productData.pageInfo.hasNextPage ? productData.pageInfo.endCursor : undefined;
+    } while (cursor);
 
     return products;
-  }
-
-  private extractNextPageInfo(linkHeader?: string): string | null {
-    if (!linkHeader) return null;
-    const nextMatch = linkHeader.match(/<[^>]*page_info=([^&>]+)[^>]*>;\s*rel="next"/);
-    return nextMatch ? nextMatch[1] : null;
   }
 }

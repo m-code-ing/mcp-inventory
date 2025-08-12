@@ -28,15 +28,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: 'sync_inventory',
-        description: 'Fetch inventory from Shopify and save to Excel file',
+        description: 'Fetch inventory from Shopify and save to timestamped Excel file in shopify/inventory directory',
         inputSchema: {
           type: 'object',
-          properties: {
-            output_path: {
-              type: 'string',
-              description: 'Path where to save the Excel file (optional, defaults to ./inventory.xlsx)',
-            },
-          },
+          properties: {},
         },
       },
       {
@@ -61,11 +56,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   if (name === 'sync_inventory') {
     try {
-      const outputPath = (args as any)?.output_path || process.env.OUTPUT_PATH || './inventory.xlsx';
-
       const inventoryService = new InventoryService(process.env.SHOPIFY_STORE!, process.env.SHOPIFY_ACCESS_TOKEN!);
 
-      const result = await inventoryService.syncInventory(outputPath);
+      const result = await inventoryService.syncInventory();
 
       return {
         content: [

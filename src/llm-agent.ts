@@ -23,8 +23,7 @@ export class InventoryLLMAgent {
 
   private async executeTool(name: string, args: any): Promise<string> {
     if (name === 'sync_inventory') {
-      const outputPath = args.output_path || './inventory.xlsx';
-      const result = await this.inventoryService.syncInventory(outputPath);
+      const result = await this.inventoryService.syncInventory();
       return `Successfully synced ${result.productCount} products to ${result.filePath}`;
     }
 
@@ -111,15 +110,10 @@ Full inventory data loaded for detailed analysis.`;
           type: 'function' as const,
           function: {
             name: 'sync_inventory',
-            description: 'Fetch fresh inventory data from Shopify and save to Excel file',
+            description: 'Fetch fresh inventory data from Shopify and save to timestamped Excel file',
             parameters: {
               type: 'object',
-              properties: {
-                output_path: {
-                  type: 'string',
-                  description: 'Path where to save the Excel file (optional, defaults to ./inventory.xlsx)',
-                },
-              },
+              properties: {},
             },
           },
         },
