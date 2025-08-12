@@ -1,7 +1,7 @@
-import { ShopifyClient } from "./shopify";
-import { EtsyClient } from "./etsy";
-import { ExcelExporter } from "./excel";
-import { Product } from "./types";
+import { ShopifyClient } from './shopify';
+import { EtsyClient } from './etsy';
+import { ExcelExporter } from './excel';
+import { Product } from './types';
 
 export class InventoryService {
   private shopifyClient: ShopifyClient;
@@ -34,7 +34,7 @@ export class InventoryService {
         filePath: outputPath,
       };
     } catch (error) {
-      throw new Error(`Inventory sync failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw new Error(`Inventory sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

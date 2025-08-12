@@ -8,9 +8,9 @@ export class EtsyClient {
 
   constructor(apiKey: string, accessToken: string, shopId: string) {
     this.headers = {
-      'Authorization': `Bearer ${accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
       'x-api-key': apiKey,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     };
     this.shopId = shopId;
   }
@@ -35,7 +35,7 @@ export class EtsyClient {
           quantity: listing.quantity,
           price: parseFloat(listing.price),
           platform: 'etsy',
-          status: listing.state
+          status: listing.state,
         });
       }
 

@@ -9,7 +9,7 @@ export class ShopifyClient {
     this.baseUrl = `https://${shopDomain}/admin/api/2023-10/`;
     this.headers = {
       'X-Shopify-Access-Token': accessToken,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     };
   }
 
@@ -18,7 +18,7 @@ export class ShopifyClient {
     let nextPageInfo: string | null = null;
 
     do {
-      const url = nextPageInfo 
+      const url = nextPageInfo
         ? `${this.baseUrl}products.json?page_info=${nextPageInfo}&limit=250`
         : `${this.baseUrl}products.json?limit=250`;
 
@@ -35,7 +35,7 @@ export class ShopifyClient {
             price: parseFloat(variant.price),
             platform: 'shopify',
             variant: variant.title !== 'Default Title' ? variant.title : undefined,
-            status: product.status
+            status: product.status,
           });
         }
       }

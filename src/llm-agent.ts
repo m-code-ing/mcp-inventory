@@ -15,12 +15,9 @@ export class InventoryLLMAgent {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
-    
-    this.inventoryService = new InventoryService(
-      process.env.SHOPIFY_STORE!,
-      process.env.SHOPIFY_ACCESS_TOKEN!
-    );
-    
+
+    this.inventoryService = new InventoryService(process.env.SHOPIFY_STORE!, process.env.SHOPIFY_ACCESS_TOKEN!);
+
     this.excelExporter = new ExcelExporter();
   }
 
@@ -30,23 +27,23 @@ export class InventoryLLMAgent {
       const result = await this.inventoryService.syncInventory(outputPath);
       return `Successfully synced ${result.productCount} products to ${result.filePath}`;
     }
-    
+
     if (name === 'read_inventory') {
       const filePath = args.file_path || './inventory.xlsx';
-      
+
       if (!fs.existsSync(filePath)) {
         return `Inventory file not found at ${filePath}. Please run sync_inventory first.`;
       }
-      
+
       const data = await this.excelExporter.readFromExcel(filePath);
       const summary = {
         totalProducts: data.length,
-        platforms: [...new Set(data.map(p => p.platform))],
-        totalValue: data.reduce((sum, p) => sum + (p.price * p.quantity), 0),
-        lowStock: data.filter(p => p.quantity < 5).length,
-        outOfStock: data.filter(p => p.quantity === 0).length,
+        platforms: [...new Set(data.map((p) => p.platform))],
+        totalValue: data.reduce((sum, p) => sum + p.price * p.quantity, 0),
+        lowStock: data.filter((p) => p.quantity < 5).length,
+        outOfStock: data.filter((p) => p.quantity === 0).length,
       };
-      
+
       return `Inventory Summary:
 - Total Products: ${summary.totalProducts}
 - Platforms: ${summary.platforms.join(', ')}
@@ -56,39 +53,54 @@ export class InventoryLLMAgent {
 
 Full inventory data loaded for detailed analysis.`;
     }
-    
+
     if (name === 'analyze_inventory') {
       const query = args.query.toLowerCase();
       const filePath = args.file_path || './inventory.xlsx';
-      
+
       if (!fs.existsSync(filePath)) {
         return `Inventory file not found at ${filePath}. Please run sync_inventory first.`;
       }
-      
+
       const data = await this.excelExporter.readFromExcel(filePath);
-      
+
       if (query.includes('out of stock')) {
-        const outOfStock = data.filter(p => p.quantity === 0);
-        return `Out of Stock Products (${outOfStock.length}):\n${outOfStock.map(p => `- ${p.title}${p.variant ? ` (${p.variant})` : ''} - SKU: ${p.sku || 'N/A'}`).join('\n')}`;
+        const outOfStock = data.filter((p) => p.quantity === 0);
+        return `Out of Stock Products (${outOfStock.length}):\n${outOfStock
+          .map((p) => `- ${p.title}${p.variant ? ` (${p.variant})` : ''} - SKU: ${p.sku || 'N/A'}`)
+          .join('\n')}`;
       }
-      
+
       if (query.includes('low stock')) {
-        const lowStock = data.filter(p => p.quantity > 0 && p.quantity < 5);
-        return `Low Stock Products (${lowStock.length}):\n${lowStock.map(p => `- ${p.title}${p.variant ? ` (${p.variant})` : ''} - Qty: ${p.quantity} - SKU: ${p.sku || 'N/A'}`).join('\n')}`;
+        const lowStock = data.filter((p) => p.quantity > 0 && p.quantity < 5);
+        return `Low Stock Products (${lowStock.length}):\n${lowStock
+          .map((p) => `- ${p.title}${p.variant ? ` (${p.variant})` : ''} - Qty: ${p.quantity} - SKU: ${p.sku || 'N/A'}`)
+          .join('\n')}`;
       }
-      
+
       if (query.includes('high value') || query.includes('expensive')) {
-        const highValue = data.sort((a, b) => (b.price * b.quantity) - (a.price * a.quantity)).slice(0, 10);
-        return `Top 10 Highest Value Products:\n${highValue.map(p => `- ${p.title}${p.variant ? ` (${p.variant})` : ''} - Value: $${(p.price * p.quantity).toFixed(2)} (${p.quantity} × $${p.price})`).join('\n')}`;
+        const highValue = data.sort((a, b) => b.price * b.quantity - a.price * a.quantity).slice(0, 10);
+        return `Top 10 Highest Value Products:\n${highValue
+          .map(
+            (p) =>
+              `- ${p.title}${p.variant ? ` (${p.variant})` : ''} - Value: $${(p.price * p.quantity).toFixed(2)} (${
+                p.quantity
+              } × $${p.price})`
+          )
+          .join('\n')}`;
       }
-      
+
       if (query.includes('count') || query.includes('total')) {
-        return `Product Counts:\n- Total: ${data.length}\n- In Stock: ${data.filter(p => p.quantity > 0).length}\n- Out of Stock: ${data.filter(p => p.quantity === 0).length}\n- Low Stock (<5): ${data.filter(p => p.quantity > 0 && p.quantity < 5).length}`;
+        return `Product Counts:\n- Total: ${data.length}\n- In Stock: ${
+          data.filter((p) => p.quantity > 0).length
+        }\n- Out of Stock: ${data.filter((p) => p.quantity === 0).length}\n- Low Stock (<5): ${
+          data.filter((p) => p.quantity > 0 && p.quantity < 5).length
+        }`;
       }
-      
+
       return `Available queries: out of stock, low stock, high value, count/total`;
     }
-    
+
     throw new Error(`Unknown tool: ${name}`);
   }
 
@@ -131,7 +143,8 @@ Full inventory data loaded for detailed analysis.`;
           type: 'function' as const,
           function: {
             name: 'analyze_inventory',
-            description: 'Analyze inventory data for specific queries: out of stock, low stock, high value, count/total',
+            description:
+              'Analyze inventory data for specific queries: out of stock, low stock, high value, count/total',
             parameters: {
               type: 'object',
               properties: {
@@ -151,7 +164,7 @@ Full inventory data loaded for detailed analysis.`;
       ];
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-5',
         messages: [
           {
             role: 'system',
@@ -177,7 +190,7 @@ For detailed analysis, use analyze_inventory with queries like "out of stock", "
 
       if (assistantMessage.tool_calls) {
         const toolResults: string[] = [];
-        
+
         for (const toolCall of assistantMessage.tool_calls) {
           const functionName = (toolCall as any).function.name;
           const args = JSON.parse((toolCall as any).function.arguments || '{}');

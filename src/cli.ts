@@ -3,9 +3,9 @@ import readline from 'readline';
 
 async function main() {
   console.log('🤖 Inventory LLM Agent Starting...');
-  
+
   const agent = new InventoryLLMAgent();
-  
+
   console.log('✅ Agent ready! You can now ask questions about your inventory.');
   console.log('Examples:');
   console.log('- "Fetch my latest inventory"');
@@ -31,7 +31,7 @@ async function main() {
       console.log('🤖 Agent: Thinking...');
       const response = await agent.chat(input);
       console.log(`🤖 Agent: ${response}\\n`);
-      
+
       askQuestion();
     });
   };

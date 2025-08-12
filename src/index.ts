@@ -1,6 +1,11 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
 import { InventoryService } from './inventory-service';
 import { ExcelExporter } from './excel';
 import fs from 'fs';
@@ -57,11 +62,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (name === 'sync_inventory') {
     try {
       const outputPath = (args as any)?.output_path || process.env.OUTPUT_PATH || './inventory.xlsx';
-      
-      const inventoryService = new InventoryService(
-        process.env.SHOPIFY_STORE!,
-        process.env.SHOPIFY_ACCESS_TOKEN!
-      );
+
+      const inventoryService = new InventoryService(process.env.SHOPIFY_STORE!, process.env.SHOPIFY_ACCESS_TOKEN!);
 
       const result = await inventoryService.syncInventory(outputPath);
 
@@ -89,7 +91,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (name === 'read_inventory') {
     try {
       const filePath = (args as any)?.file_path || './inventory.xlsx';
-      
+
       if (!fs.existsSync(filePath)) {
         return {
           content: [
@@ -104,12 +106,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const excelExporter = new ExcelExporter();
       const data = await excelExporter.readFromExcel(filePath);
-      
+
       const summary = {
         totalProducts: data.length,
-        platforms: [...new Set(data.map(p => p.platform))],
-        totalValue: data.reduce((sum, p) => sum + (p.price * p.quantity), 0),
-        lowStock: data.filter(p => p.quantity < 5).length,
+        platforms: [...new Set(data.map((p) => p.platform))],
+        totalValue: data.reduce((sum, p) => sum + p.price * p.quantity, 0),
+        lowStock: data.filter((p) => p.quantity < 5).length,
       };
 
       return {
@@ -139,7 +141,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 server.setRequestHandler(ListResourcesRequestSchema, async () => {
   const inventoryPath = './inventory.xlsx';
   const resources = [];
-  
+
   if (fs.existsSync(inventoryPath)) {
     resources.push({
       uri: `file://${path.resolve(inventoryPath)}`,
@@ -148,20 +150,20 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
       mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
   }
-  
+
   return { resources };
 });
 
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const uri = request.params.uri;
-  
+
   if (uri.startsWith('file://') && uri.endsWith('inventory.xlsx')) {
     const filePath = uri.replace('file://', '');
-    
+
     if (fs.existsSync(filePath)) {
       const excelExporter = new ExcelExporter();
       const data = await excelExporter.readFromExcel(filePath);
-      
+
       return {
         contents: [
           {
@@ -173,7 +175,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       };
     }
   }
-  
+
   throw new Error(`Resource not found: ${uri}`);
 });
 
