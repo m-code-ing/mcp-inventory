@@ -34,4 +34,31 @@ export class ExcelExporter {
 
     await workbook.xlsx.writeFile(filePath);
   }
+
+  async readFromExcel(filePath: string): Promise<Product[]> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
+    
+    const worksheet = workbook.getWorksheet('Inventory');
+    const products: Product[] = [];
+    
+    worksheet?.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // Skip header
+      
+      const product: Product = {
+        platform: (row.getCell(1).value as string)?.toLowerCase() as 'shopify' | 'etsy',
+        id: row.getCell(2).value as string,
+        title: row.getCell(3).value as string,
+        sku: row.getCell(4).value as string,
+        variant: row.getCell(5).value as string || undefined,
+        quantity: Number(row.getCell(6).value) || 0,
+        price: Number(row.getCell(7).value) || 0,
+        status: row.getCell(8).value as string
+      };
+      
+      products.push(product);
+    });
+    
+    return products;
+  }
 }

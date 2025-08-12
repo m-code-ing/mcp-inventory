@@ -29,6 +29,18 @@ Edit `.env` with your API credentials:
 
 ## Usage
 
+### LLM Agent (Recommended)
+Run the interactive LLM agent:
+```bash
+npm run agent
+```
+
+This starts a chat interface where you can:
+- Ask to fetch inventory: "Fetch my latest inventory"
+- Ask questions: "How many products do I have?"
+- Get analysis: "Which products are low in stock?"
+- Check values: "What's my total inventory value?"
+
 ### As MCP Server
 Run with MCP client:
 ```bash
@@ -40,10 +52,12 @@ npm start
 npm run dev
 ```
 
-## MCP Tool
+## MCP Tools
 
-- `sync_inventory`: Fetches all active products from both platforms and saves to Excel
+- `sync_inventory`: Fetches all active products from Shopify and saves to Excel
   - Optional parameter: `output_path` (defaults to ./inventory.xlsx)
+- `read_inventory`: Reads and analyzes inventory data from Excel file
+  - Optional parameter: `file_path` (defaults to ./inventory.xlsx)
 
 ## Excel Output
 
