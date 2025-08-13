@@ -10,6 +10,8 @@ export class InventoryLLMAgent {
   private openai: OpenAI;
   private inventoryService: InventoryService;
   private excelExporter: ExcelExporter;
+  private assistantId: string | null = null;
+  private threadId: string | null = null;
 
   constructor() {
     this.openai = new OpenAI({
@@ -17,8 +19,83 @@ export class InventoryLLMAgent {
     });
 
     this.inventoryService = new InventoryService(process.env.SHOPIFY_STORE!, process.env.SHOPIFY_ACCESS_TOKEN!);
-
     this.excelExporter = new ExcelExporter();
+  }
+
+  private async initializeAssistant(): Promise<void> {
+    if (this.assistantId) return;
+
+    const assistant = await this.openai.beta.assistants.create({
+      name: "Inventory Management Assistant",
+      instructions: `You are an inventory management assistant for a Shopify store. You can help fetch inventory data and answer questions about it.
+
+Available tools:
+- sync_inventory: Fetch fresh inventory data from Shopify and save to Excel
+- read_inventory: Read and get summary of inventory data from Excel file  
+- analyze_inventory: Analyze inventory for specific queries
+
+For detailed analysis, use analyze_inventory with queries like "out of stock", "low stock", "high value", or "count".`,
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'sync_inventory',
+            description: 'Fetch fresh inventory data from Shopify and save to timestamped Excel file',
+            parameters: {
+              type: 'object',
+              properties: {},
+            },
+          },
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'read_inventory',
+            description: 'Read and analyze existing inventory data from Excel file',
+            parameters: {
+              type: 'object',
+              properties: {
+                file_path: {
+                  type: 'string',
+                  description: 'Path to the Excel file (optional, defaults to ./inventory.xlsx)',
+                },
+              },
+            },
+          },
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'analyze_inventory',
+            description: 'Analyze inventory data for specific queries: out of stock, low stock, high value, count/total',
+            parameters: {
+              type: 'object',
+              properties: {
+                query: {
+                  type: 'string',
+                  description: 'Analysis query: "out of stock", "low stock", "high value", "count"',
+                },
+                file_path: {
+                  type: 'string',
+                  description: 'Path to the Excel file (optional, defaults to ./inventory.xlsx)',
+                },
+              },
+              required: ['query'],
+            },
+          },
+        },
+      ],
+      model: "gpt-4",
+    });
+
+    this.assistantId = assistant.id;
+  }
+
+  private async initializeThread(): Promise<void> {
+    if (this.threadId) return;
+
+    const thread = await this.openai.beta.threads.create();
+    this.threadId = thread.id;
   }
 
   private async executeTool(name: string, args: any): Promise<string> {
@@ -105,115 +182,59 @@ Full inventory data loaded for detailed analysis.`;
 
   async chat(message: string): Promise<string> {
     try {
-      const tools = [
-        {
-          type: 'function' as const,
-          function: {
-            name: 'sync_inventory',
-            description: 'Fetch fresh inventory data from Shopify and save to timestamped Excel file',
-            parameters: {
-              type: 'object',
-              properties: {},
-            },
-          },
-        },
-        {
-          type: 'function' as const,
-          function: {
-            name: 'read_inventory',
-            description: 'Read and analyze existing inventory data from Excel file',
-            parameters: {
-              type: 'object',
-              properties: {
-                file_path: {
-                  type: 'string',
-                  description: 'Path to the Excel file (optional, defaults to ./inventory.xlsx)',
-                },
-              },
-            },
-          },
-        },
-        {
-          type: 'function' as const,
-          function: {
-            name: 'analyze_inventory',
-            description:
-              'Analyze inventory data for specific queries: out of stock, low stock, high value, count/total',
-            parameters: {
-              type: 'object',
-              properties: {
-                query: {
-                  type: 'string',
-                  description: 'Analysis query: "out of stock", "low stock", "high value", "count"',
-                },
-                file_path: {
-                  type: 'string',
-                  description: 'Path to the Excel file (optional, defaults to ./inventory.xlsx)',
-                },
-              },
-              required: ['query'],
-            },
-          },
-        },
-      ];
+      await this.initializeAssistant();
+      await this.initializeThread();
 
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-5',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an inventory management assistant for a Shopify store. You can help fetch inventory data and answer questions about it.
-
-Available tools:
-- sync_inventory: Fetch fresh inventory data from Shopify and save to Excel
-- read_inventory: Read and get summary of inventory data from Excel file  
-- analyze_inventory: Analyze inventory for specific queries
-
-For detailed analysis, use analyze_inventory with queries like "out of stock", "low stock", "high value", or "count".`,
-          },
-          {
-            role: 'user',
-            content: message,
-          },
-        ],
-        tools,
-        tool_choice: 'auto',
+      // Add message to thread
+      await this.openai.beta.threads.messages.create(this.threadId!, {
+        role: "user",
+        content: message,
       });
 
-      const assistantMessage = response.choices[0].message;
+      // Create and poll run
+      const run = await this.openai.beta.threads.runs.createAndPoll(this.threadId!, {
+        assistant_id: this.assistantId!,
+      });
 
-      if (assistantMessage.tool_calls) {
-        const toolResults: string[] = [];
-
-        for (const toolCall of assistantMessage.tool_calls) {
-          const functionName = (toolCall as any).function.name;
-          const args = JSON.parse((toolCall as any).function.arguments || '{}');
-          const result = await this.executeTool(functionName, args);
-          toolResults.push(result);
+      // Handle tool calls
+      if (run.status === 'requires_action' && run.required_action?.type === 'submit_tool_outputs') {
+        const toolOutputs = [];
+        
+        for (const toolCall of run.required_action.submit_tool_outputs.tool_calls) {
+          const args = JSON.parse(toolCall.function.arguments || '{}');
+          const result = await this.executeTool(toolCall.function.name, args);
+          
+          toolOutputs.push({
+            tool_call_id: toolCall.id,
+            output: result,
+          });
         }
 
-        const finalResponse = await this.openai.chat.completions.create({
-          model: 'gpt-4',
-          messages: [
-            {
-              role: 'system',
-              content: `You are an inventory management assistant. Based on the tool results, provide helpful analysis and answer the user's question.`,
-            },
-            {
-              role: 'user',
-              content: message,
-            },
-            {
-              role: 'assistant',
-              content: `Tool results: ${toolResults.join('\n\n')}`,
-            },
-          ],
-        });
+        // Submit tool outputs and poll until completion
+        const finalRun = await this.openai.beta.threads.runs.submitToolOutputsAndPoll(
+          run.id,
+          { 
+            thread_id: this.threadId!,
+            tool_outputs: toolOutputs 
+          }
+        );
 
-        return finalResponse.choices[0].message.content || 'No response generated.';
+        if (finalRun.status === 'completed') {
+          const messages = await this.openai.beta.threads.messages.list(this.threadId!);
+          return messages.data[0].content[0].type === 'text' 
+            ? messages.data[0].content[0].text.value 
+            : 'No response generated.';
+        }
       }
 
-      return assistantMessage.content || 'No response generated.';
+      if (run.status === 'completed') {
+        const messages = await this.openai.beta.threads.messages.list(this.threadId!);
+        return messages.data[0].content[0].type === 'text' 
+          ? messages.data[0].content[0].text.value 
+          : 'No response generated.';
+      }
+
+      return `Run completed with status: ${run.status}`;
     } catch (error) {
       return `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`;
     }
