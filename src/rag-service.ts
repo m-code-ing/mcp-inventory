@@ -86,6 +86,7 @@ export class RAGService {
   }
 
   async searchProducts(query: string): Promise<string> {
+    this.vectorStoreId = await this.getOrCreateVectorStore();
     console.log('\n' + '='.repeat(60));
     console.log('🔍 RAG AGENT PROCESSING');
     console.log('='.repeat(60));
