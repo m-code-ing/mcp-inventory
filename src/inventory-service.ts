@@ -24,7 +24,12 @@ export class InventoryService {
     this.markdownExporter = new MarkdownExporter();
   }
 
-  async syncInventory(): Promise<{ success: boolean; productCount: number; filePath: string }> {
+  async syncInventory(): Promise<{
+    success: boolean;
+    productCount: number;
+    excelPath: string;
+    markdownPath: string;
+  }> {
     try {
       const shopifyProducts = await this.shopifyClient.fetchInventory();
       // const etsyProducts = await this.etsyClient.fetchInventory(); // Disabled
@@ -47,7 +52,8 @@ export class InventoryService {
       return {
         success: true,
         productCount: allProducts.length,
-        filePath: markdownPath,
+        excelPath,
+        markdownPath,
       };
     } catch (error) {
       throw new Error(`Inventory sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

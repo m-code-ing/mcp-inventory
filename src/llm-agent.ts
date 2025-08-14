@@ -136,12 +136,12 @@ For ANY inventory questions (counts, analysis, specific products, etc.), always 
       // Nothing there → sync
       if (files.length === 0) {
         console.log('🔄 No files found. Fetching fresh inventory...');
-        const result = await this.inventoryService.syncInventory();
-        await this.ragService.updateInventory(result.filePath); // should be .md
+          const result = await this.inventoryService.syncInventory();
+          await this.ragService.updateInventory(result.markdownPath); // should be .md
 
-        if (!result.filePath.endsWith('.md')) {
-          throw new Error('Expected .md file path for inventory update');
-        }
+          if (!result.markdownPath.endsWith('.md')) {
+            throw new Error('Expected .md file path for inventory update');
+          }
 
         return `Successfully synced ${result.productCount} products and updated search index`;
       }
@@ -157,9 +157,11 @@ For ANY inventory questions (counts, analysis, specific products, etc.), always 
       console.log('🗑️ Cleaning up inventory files (keep latest .md and latest Excel)...');
       for (const f of files) {
         if (!keepSet.has(f.fp)) {
-          try {
-            fs.unlinkSync(f.fp);
-          } catch {}
+            try {
+              fs.unlinkSync(f.fp);
+            } catch {
+              // Ignore deletion errors
+            }
         }
       }
 
@@ -177,7 +179,7 @@ For ANY inventory questions (counts, analysis, specific products, etc.), always 
       // 4) Stale or missing .md → fetch fresh and index
       console.log('🔄 Fetching fresh inventory data...');
       const result = await this.inventoryService.syncInventory(); // produce fresh .md + excel
-      await this.ragService.updateInventory(result.filePath); // index fresh .md
+      await this.ragService.updateInventory(result.markdownPath); // index fresh .md
       return `Successfully synced ${result.productCount} products and updated search index`;
     }
 

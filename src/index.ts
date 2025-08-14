@@ -64,7 +64,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [
           {
             type: 'text',
-            text: `Successfully synced ${result.productCount} products to ${result.filePath}`,
+            text: `Successfully synced ${result.productCount} products to ${result.excelPath}`,
           },
         ],
       };
