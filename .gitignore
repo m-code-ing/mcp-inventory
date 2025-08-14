@@ -4,3 +4,4 @@ dist/
 *.xlsx
 .DS_Store
 shopify/
+.rag*

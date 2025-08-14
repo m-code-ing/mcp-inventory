@@ -118,69 +118,66 @@ For ANY inventory questions (counts, analysis, specific products, etc.), always 
 
     if (name === 'sync_inventory') {
       const dir = './shopify/inventory';
-      const supported = new Set(['.md', '.txt', '.json']); // formats your RAG uses
+      const extsExcel = new Set(['.xlsx', '.xls']);
+      const mdExt = '.md';
+      const oneDayMs = 24 * 60 * 60 * 1000;
 
-      // 1) List files with mtimes (ignore subdirs)
-      const entries = fs
+      // 1) Read files
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const files = fs
         .readdirSync(dir)
         .map((fn) => {
           const fp = path.join(dir, fn);
           const st = fs.statSync(fp);
-          return st.isFile() ? { fp, mtimeMs: st.mtimeMs } : null;
+          return st.isFile() ? { fp, ext: path.extname(fp).toLowerCase(), mtimeMs: st.mtimeMs } : null;
         })
-        .filter(Boolean) as { fp: string; mtimeMs: number }[];
+        .filter(Boolean) as { fp: string; ext: string; mtimeMs: number }[];
 
-      if (entries.length === 0) {
+      // Nothing there → sync
+      if (files.length === 0) {
         console.log('🔄 No files found. Fetching fresh inventory...');
         const result = await this.inventoryService.syncInventory();
-        await this.ragService.updateInventory(result.filePath);
+        await this.ragService.updateInventory(result.filePath); // should be .md
+
+        if (!result.filePath.endsWith('.md')) {
+          throw new Error('Expected .md file path for inventory update');
+        }
+
         return `Successfully synced ${result.productCount} products and updated search index`;
       }
 
-      // 2) Sort by mtime desc; keep latest, delete the rest
-      entries.sort((a, b) => b.mtimeMs - a.mtimeMs);
-      const latest = entries[0];
-      const toDelete = entries.slice(1);
+      // 2) Pick latest .md and latest Excel; delete the rest
+      const mdFiles = files.filter((f) => f.ext === mdExt).sort((a, b) => b.mtimeMs - a.mtimeMs);
+      const xlFiles = files.filter((f) => extsExcel.has(f.ext)).sort((a, b) => b.mtimeMs - a.mtimeMs);
 
-      console.log('🗑️ Cleaning up old inventory files (keeping the latest)...');
-      for (const e of toDelete) {
-        try {
-          fs.unlinkSync(e.fp);
-        } catch {}
+      const keepMd = mdFiles[0]; // may be undefined
+      const keepXl = xlFiles[0]; // may be undefined
+      const keepSet = new Set([keepMd?.fp, keepXl?.fp].filter(Boolean) as string[]);
+
+      console.log('🗑️ Cleaning up inventory files (keep latest .md and latest Excel)...');
+      for (const f of files) {
+        if (!keepSet.has(f.fp)) {
+          try {
+            fs.unlinkSync(f.fp);
+          } catch {}
+        }
       }
 
-      // 3) Check age of latest
-      const oneDayMs = 24 * 60 * 60 * 1000;
-      const ageMs = Date.now() - latest.mtimeMs;
+      // 3) Determine freshness using the NEWEST of the kept files
+      const newestKept = [keepMd, keepXl].filter(Boolean).sort((a, b) => b!.mtimeMs - a!.mtimeMs)[0];
+      const ageMs = newestKept ? Date.now() - newestKept.mtimeMs : Infinity;
 
-      if (ageMs < oneDayMs) {
+      if (ageMs < oneDayMs && keepMd) {
         console.log('📅 Using existing inventory (less than 1 day old)');
-        // pick the latest **supported** file (could be latest itself or none)
-        const latestExt = path.extname(latest.fp).toLowerCase();
-        const usePath = supported.has(latestExt)
-          ? latest.fp
-          : // fallback: scan again for most recent supported file (if any)
-            entries.find((e) => supported.has(path.extname(e.fp).toLowerCase()))?.fp;
-
-        if (usePath) {
-          await this.ragService.updateInventory(usePath);
-        } else {
-          console.log('⚠️ No supported inventory file found to index (need .md/.txt/.json)');
-        }
-
+        await this.ragService.updateInventory(keepMd.fp); // index latest .md
         const hours = Math.round(ageMs / (60 * 60 * 1000));
         return `Using existing inventory data (${hours} hours old)`;
       }
 
-      // 4) Latest is stale → sync fresh, index it, then remove the old latest
+      // 4) Stale or missing .md → fetch fresh and index
       console.log('🔄 Fetching fresh inventory data...');
-      const result = await this.inventoryService.syncInventory();
-      await this.ragService.updateInventory(result.filePath);
-
-      try {
-        fs.unlinkSync(latest.fp);
-      } catch {} // keep directory clean (optional)
-
+      const result = await this.inventoryService.syncInventory(); // produce fresh .md + excel
+      await this.ragService.updateInventory(result.filePath); // index fresh .md
       return `Successfully synced ${result.productCount} products and updated search index`;
     }
 
