@@ -41,6 +41,14 @@ This starts a chat interface where you can:
 - Get analysis: "Which products are low in stock?"
 - Check values: "What's my total inventory value?"
 
+### RAG Agent
+Run the semantic search agent directly:
+```bash
+npm run rag
+```
+
+This starts a lightweight interface that only performs product search using the indexed inventory.
+
 ### As MCP Server
 Run with MCP client:
 ```bash
