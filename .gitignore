@@ -3,3 +3,4 @@ dist/
 .env
 *.xlsx
 .DS_Store
+shopify/
