@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { RAGService } from './rag-service';
 import { MCPClient } from './mcp-client';
 import { getOpenAITools, getToolInstructions, InventoryToolName, isValidToolName } from '../shared/tool-definitions';
+import { Logger } from '../shared/logger';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -12,6 +13,7 @@ export class InventoryLLMAgent {
   private openai: OpenAI;
   private ragService: RAGService;
   private mcpClient: MCPClient;
+  private logger: Logger;
   private assistantId: string | null = null;
   private threadId: string | null = null;
 
@@ -22,6 +24,7 @@ export class InventoryLLMAgent {
 
     this.ragService = new RAGService();
     this.mcpClient = new MCPClient();
+    this.logger = Logger.getInstance();
   }
 
   private getAssistantConfig() {
@@ -43,33 +46,33 @@ IMPORTANT: When you receive "MCP Server Response:" from a tool, present that exa
     const config = this.getAssistantConfig();
     
     // List existing assistants and clean up old main assistants
-    console.log('🧹 Cleaning up old main assistants...');
+    this.logger.cleanup('Cleaning up old main assistants...');
     const assistants = await this.openai.beta.assistants.list();
     const mainAssistants = assistants.data.filter(
       (a) => a.name === 'Inventory Management Assistant' && a.tools?.some((tool) => tool.type === 'function')
     );
 
     if (mainAssistants.length > 0) {
-      console.log(`🔄 Found ${mainAssistants.length} existing assistants, updating first one and deleting others`);
+      this.logger.info(`Found ${mainAssistants.length} existing assistants, updating first one and deleting others`);
       // Update the first one with latest config
       this.assistantId = mainAssistants[0].id;
       await this.openai.beta.assistants.update(this.assistantId, config);
-      console.log(`✅ Updated existing assistant: ${this.assistantId}`);
+      this.logger.success(`Updated existing assistant: ${this.assistantId}`);
       
       // Delete the rest
       for (let i = 1; i < mainAssistants.length; i++) {
         await this.openai.beta.assistants.delete(mainAssistants[i].id);
-        console.log(`🗑️ Deleted duplicate assistant: ${mainAssistants[i].id}`);
+        this.logger.cleanup(`Deleted duplicate assistant: ${mainAssistants[i].id}`);
       }
       return;
     }
 
     // Create new assistant if none exists
-    console.log('🤖 Creating new main assistant...');
+    this.logger.info('Creating new main assistant...');
     const assistant = await this.openai.beta.assistants.create(config);
 
     this.assistantId = assistant.id;
-    console.log(`✅ Main assistant created: ${assistant.id}`);
+    this.logger.success(`Main assistant created: ${assistant.id}`);
   }
 
   private async initializeThread(): Promise<void> {
@@ -88,28 +91,26 @@ IMPORTANT: When you receive "MCP Server Response:" from a tool, present that exa
   }
 
   private async executeValidTool(name: InventoryToolName, args: any): Promise<string> {
-    console.log('\n' + '-'.repeat(50));
-    console.log('🔧 MAIN AGENT TOOL EXECUTION');
-    console.log('-'.repeat(50));
-    console.log(`🚀 Executing tool: ${name}`);
-    console.log(`📝 Arguments:`, args);
+    this.logger.toolExecution(name, args);
 
     if (name === 'data_operations') {
-      console.log('🔗 Calling MCP server data_operations...');
+      this.logger.mcpCall('data operations');
       await this.mcpClient.connect();
       const result = await this.mcpClient.callTool('data_operations', args);
-      console.log('📊 MCP Server Result:', result);
-      console.log('✅ MCP data operation completed');
-      return `MCP Server Response: ${result}`;
+      this.logger.mcpResponse(result);
+      this.logger.processComplete();
+      this.logger.finalAnswer();
+      return result;
     }
 
     if (name === 'analytics') {
-      console.log('🔗 Calling MCP server analytics...');
+      this.logger.mcpCall('analytics');
       await this.mcpClient.connect();
       const result = await this.mcpClient.callTool('analytics', args);
-      console.log('📊 MCP Server Result:', result);
-      console.log('✅ MCP analytics completed');
-      return `MCP Server Response: ${result}`;
+      this.logger.mcpResponse(result);
+      this.logger.processComplete();
+      this.logger.finalAnswer();
+      return result;
     }
 
     if (name === 'management') {
@@ -122,17 +123,18 @@ IMPORTANT: When you receive "MCP Server Response:" from a tool, present that exa
 
     if (name === 'search') {
       const query = args.query || args.filters?.title || 'general search';
-      console.log(`🔍 Delegating search to RAG agent: "${query}"`);
+      this.logger.ragCall(query);
       const results = await this.ragService.searchProducts(query);
 
       // Check if sync is required
       if (results.startsWith('SYNC_REQUIRED:')) {
+        this.logger.processWarning('Sync required');
+        this.logger.finalAnswer();
         return 'Please sync inventory first using the data_operations tool with operation: sync.';
       }
 
-      console.log('\n' + '-'.repeat(50));
-      console.log('✅ MAIN AGENT TOOL COMPLETED');
-      console.log('-'.repeat(50));
+      this.logger.processComplete();
+      this.logger.finalAnswer();
       return results;
     }
 

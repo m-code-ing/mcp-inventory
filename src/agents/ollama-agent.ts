@@ -1,5 +1,4 @@
 import OpenAI from 'openai';
-import { RAGService } from './rag-service';
 import { MCPClient } from './mcp-client';
 import { getOpenAITools, getToolInstructions, InventoryToolName, isValidToolName } from '../shared/tool-definitions';
 import fs from 'fs';
@@ -10,7 +9,6 @@ dotenv.config();
 
 export class OllamaInventoryAgent {
   private ollama: OpenAI;
-  private ragService: RAGService;
   private mcpClient: MCPClient;
   private conversationHistory: Array<{ role: string; content: string }> = [];
 
@@ -20,7 +18,6 @@ export class OllamaInventoryAgent {
       baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1',
     });
 
-    this.ragService = new RAGService();
     this.mcpClient = new MCPClient();
   }
 
@@ -33,27 +30,33 @@ export class OllamaInventoryAgent {
   }
 
   private async executeValidTool(name: InventoryToolName, args: any): Promise<string> {
-    console.log('\n' + '-'.repeat(50));
-    console.log('🦙 OLLAMA AGENT TOOL EXECUTION');
-    console.log('-'.repeat(50));
-    console.log(`🚀 Executing tool: ${name}`);
-    console.log(`📝 Arguments:`, args);
+    console.log('\n' + '='.repeat(60));
+    console.log('🦙 PROCESS: Ollama Tool Execution');
+    console.log('='.repeat(60));
+    console.log(`🚀 Tool: ${name}`);
+    console.log(`📝 Args:`, args);
 
     if (name === 'data_operations') {
-      console.log('🔗 Calling MCP server data_operations...');
+      console.log('🔗 PROCESS: Calling MCP server...');
       await this.mcpClient.connect();
       const result = await this.mcpClient.callTool('data_operations', args);
-      console.log('📊 MCP Server Result:', result);
-      console.log('✅ MCP data operation completed');
+      console.log('📊 PROCESS: Server response:', result);
+      console.log('✅ PROCESS: Completed');
+      console.log('\n' + '='.repeat(60));
+      console.log('📋 FINAL ANSWER:');
+      console.log('='.repeat(60));
       return result;
     }
 
     if (name === 'analytics') {
-      console.log('🔗 Calling MCP server analytics...');
+      console.log('🔗 PROCESS: Calling MCP server...');
       await this.mcpClient.connect();
       const result = await this.mcpClient.callTool('analytics', args);
-      console.log('📊 MCP Server Result:', result);
-      console.log('✅ MCP analytics completed');
+      console.log('📊 PROCESS: Server response:', result);
+      console.log('✅ PROCESS: Completed');
+      console.log('\n' + '='.repeat(60));
+      console.log('📋 FINAL ANSWER:');
+      console.log('='.repeat(60));
       return result;
     }
 
@@ -67,18 +70,11 @@ export class OllamaInventoryAgent {
     }
 
     if (name === 'search') {
-      const query = args.query || args.filters?.title || 'general search';
-      console.log(`🔍 Delegating search to RAG agent: "${query}"`);
-      const results = await this.ragService.searchProducts(query);
-
-      if (results.startsWith('SYNC_REQUIRED:')) {
-        return 'Please sync inventory first using the data_operations tool with operation: sync.';
-      }
-
-      console.log('\n' + '-'.repeat(50));
-      console.log('✅ OLLAMA AGENT TOOL COMPLETED');
-      console.log('-'.repeat(50));
-      return results;
+      console.log('⚠️ PROCESS: Search not available in Ollama agent');
+      console.log('\n' + '='.repeat(60));
+      console.log('📋 FINAL ANSWER:');
+      console.log('='.repeat(60));
+      return 'Search functionality is not available in the Ollama agent. Please use the OpenAI agent for search capabilities.';
     }
 
     const _exhaustiveCheck: never = name;
@@ -92,11 +88,14 @@ export class OllamaInventoryAgent {
 
       const systemPrompt = `You are an inventory management assistant for a Shopify store. You have access to powerful tools for inventory operations.
 
-${getToolInstructions()}
+Available tools:
+- data_operations: Fetch fresh inventory data from Shopify and save to files
+- analytics: Perform analytics like counts, values, insights
+- management: Manage inventory tasks like cleanup, archive, delete
 
 IMPORTANT: When calling tools, use the exact JSON format. Present server responses directly without modification.
 
-Available tools: data_operations, analytics, search, management`;
+Note: Search functionality is not available in this agent. Use the OpenAI agent for search capabilities.`;
 
       // Create messages for Ollama
       const messages = [
@@ -107,7 +106,7 @@ Available tools: data_operations, analytics, search, management`;
       const response = await this.ollama.chat.completions.create({
         model: process.env.OLLAMA_MODEL || 'llama3.1:8b',
         messages: messages as any,
-        tools: getOpenAITools(),
+        tools: getOpenAITools().filter(tool => tool.function.name !== 'search'),
         tool_choice: 'auto',
         temperature: 0.1,
       });

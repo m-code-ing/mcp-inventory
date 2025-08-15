@@ -108,7 +108,7 @@ async function handleLowStock(
       content: [
         {
           type: 'text',
-          text: `Low stock products (< ${threshold}): ${lowStock.length}\n${lowStock.map((p) => `- ${p.title}: ${p.quantity}`).join('\n')}`,
+          text: `${lowStock.length} items < ${threshold}.`,
         },
       ],
     };
