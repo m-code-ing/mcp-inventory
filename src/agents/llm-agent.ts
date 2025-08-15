@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { RAGService } from './rag-service';
 import { MCPClient } from './mcp-client';
+import { getOpenAITools, getToolInstructions, InventoryToolName, isValidToolName } from '../shared/tool-definitions';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -28,63 +29,8 @@ export class InventoryLLMAgent {
       name: 'Inventory Management Assistant',
       instructions: `You are an inventory management assistant for a Shopify store. You have access to powerful tools for inventory operations.
 
-Available tools:
-- sync_inventory: Fetch fresh inventory data from Shopify and save to files
-- read_inventory: Get deterministic inventory summary with exact counts and statistics
-- search_inventory: Search and analyze inventory using natural language queries
-
-ALWAYS use the appropriate tool for user requests:
-- For syncing: use sync_inventory
-- For exact counts/totals: use read_inventory  
-- For product searches: use search_inventory
-
-Never refuse to use tools - always call the appropriate tool for the user's request.`,
-      tools: [
-        {
-          type: 'function' as const,
-          function: {
-            name: 'sync_inventory',
-            description: 'Fetch fresh inventory data from Shopify and save to files',
-            parameters: {
-              type: 'object',
-              properties: {},
-            },
-          },
-        },
-        {
-          type: 'function' as const,
-          function: {
-            name: 'read_inventory',
-            description: 'Get deterministic inventory summary with exact counts, totals, and statistics',
-            parameters: {
-              type: 'object',
-              properties: {
-                file_path: {
-                  type: 'string',
-                  description: 'Path to inventory file (optional)',
-                },
-              },
-            },
-          },
-        },
-        {
-          type: 'function' as const,
-          function: {
-            name: 'search_inventory',
-            description: 'Search and analyze inventory using natural language queries',
-            parameters: {
-              type: 'object',
-              properties: {
-                query: {
-                  type: 'string',
-                  description: 'Search query for products',
-                },
-              },
-              required: ['query'],
-            },
-          },
-        },
-      ],
+${getToolInstructions()}`,
+      tools: getOpenAITools(),
       model: 'gpt-4',
     };
   }
@@ -132,6 +78,14 @@ Never refuse to use tools - always call the appropriate tool for the user's requ
   }
 
   private async executeTool(name: string, args: any): Promise<string> {
+    if (!isValidToolName(name)) {
+      throw new Error(`Invalid tool name: ${name}`);
+    }
+    
+    return this.executeValidTool(name, args);
+  }
+
+  private async executeValidTool(name: InventoryToolName, args: any): Promise<string> {
     console.log('\n' + '-'.repeat(50));
     console.log('🔧 MAIN AGENT TOOL EXECUTION');
     console.log('-'.repeat(50));
@@ -154,6 +108,30 @@ Never refuse to use tools - always call the appropriate tool for the user's requ
       return result;
     }
 
+    if (name === 'count_products') {
+      console.log('🔗 Calling MCP server count_products...');
+      await this.mcpClient.connect();
+      const result = await this.mcpClient.callTool('count_products', args);
+      console.log('✅ MCP count completed');
+      return result;
+    }
+
+    if (name === 'get_low_stock') {
+      console.log('🔗 Calling MCP server get_low_stock...');
+      await this.mcpClient.connect();
+      const result = await this.mcpClient.callTool('get_low_stock', args);
+      console.log('✅ MCP low stock completed');
+      return result;
+    }
+
+    if (name === 'calculate_inventory_value') {
+      console.log('🔗 Calling MCP server calculate_inventory_value...');
+      await this.mcpClient.connect();
+      const result = await this.mcpClient.callTool('calculate_inventory_value', args);
+      console.log('✅ MCP value calculation completed');
+      return result;
+    }
+
     if (name === 'search_inventory') {
       const query = args.query;
       console.log(`🔍 Delegating search to RAG agent: "${query}"`);
@@ -170,7 +148,9 @@ Never refuse to use tools - always call the appropriate tool for the user's requ
       return results;
     }
 
-    throw new Error(`Unknown tool: ${name}`);
+    // TypeScript ensures we handle all tool names
+    const _exhaustiveCheck: never = name;
+    throw new Error(`Unhandled tool: ${_exhaustiveCheck}`);
   }
 
   async chat(message: string): Promise<string> {

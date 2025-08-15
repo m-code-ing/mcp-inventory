@@ -2,6 +2,7 @@ import path from 'path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { InventoryToolName } from '../shared/tool-definitions';
 
 export class MCPClient {
   private client: Client | null = null;
@@ -25,7 +26,7 @@ export class MCPClient {
     await this.client.connect(this.transport);
   }
 
-  async callTool(name: string, args: Record<string, unknown> = {}): Promise<string> {
+  async callTool(name: InventoryToolName, args: Record<string, unknown> = {}): Promise<string> {
     if (!this.client) throw new Error('MCP client not connected');
 
     const res = await this.client.callTool({ name, arguments: args });
