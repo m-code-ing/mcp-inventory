@@ -1,8 +1,6 @@
 import { InventoryToolName } from '../../shared/tool-definitions';
 import { handleDataOperations } from './data-operations-handler';
 import { handleAnalytics } from './analytics-handler';
-import { handleSearch } from './search-handler';
-import { handleManagement } from './management-handler';
 
 export async function handleToolCall(name: InventoryToolName, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   switch (name) {
@@ -11,12 +9,6 @@ export async function handleToolCall(name: InventoryToolName, args: any): Promis
     
     case 'analytics':
       return handleAnalytics(args);
-    
-    case 'search':
-      return handleSearch(args);
-    
-    case 'management':
-      return handleManagement(args);
     
     default:
       const _exhaustiveCheck: never = name;

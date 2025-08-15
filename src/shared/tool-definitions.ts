@@ -1,9 +1,7 @@
 // Type-safe tool names organized by categories
 export type InventoryToolName =
   | 'data_operations' // sync, read, export
-  | 'analytics' // count, calculate, analyze
-  | 'search' // search, filter, find
-  | 'management'; // update, delete, archive
+  | 'analytics'; // count, calculate, analyze
 
 export interface ToolDefinition {
   name: InventoryToolName;
@@ -74,67 +72,7 @@ export const INVENTORY_TOOLS: Record<InventoryToolName, ToolDefinition> = {
     },
   },
 
-  search: {
-    name: 'search',
-    description: 'Search and filter inventory using natural language queries or specific criteria',
-    parameters: {
-      type: 'object',
-      properties: {
-        query: {
-          type: 'string',
-          description: 'Natural language search query',
-        },
-        filters: {
-          type: 'object',
-          properties: {
-            title: {
-              type: 'string',
-              description: 'Filter by product title',
-            },
-            sku: {
-              type: 'string',
-              description: 'Filter by SKU',
-            },
-            price_range: {
-              type: 'object',
-              properties: {
-                min: { type: 'number' },
-                max: { type: 'number' },
-              },
-            },
-          },
-        },
-        limit: {
-          type: 'number',
-          description: 'Maximum number of results (default: 10)',
-        },
-      },
-    },
-  },
 
-  management: {
-    name: 'management',
-    description: 'Manage inventory: update product info, archive old data, delete files',
-    parameters: {
-      type: 'object',
-      properties: {
-        action: {
-          type: 'string',
-          enum: ['update', 'archive', 'delete', 'cleanup'],
-          description: 'Management action to perform',
-        },
-        target: {
-          type: 'string',
-          description: 'Target for the action (product ID, file path, etc.)',
-        },
-        data: {
-          type: 'object',
-          description: 'Data for update operations',
-        },
-      },
-      required: ['action'],
-    },
-  },
 };
 
 // Helper functions to convert to different formats
@@ -176,8 +114,6 @@ ${toolList}
 ALWAYS use the appropriate tool for user requests:
 - For data operations (sync, read, export): use data_operations
 - For analytics (counts, values, insights): use analytics
-- For searching and filtering: use search
-- For management tasks (update, archive, delete): use management
 
 Never refuse to use tools - always call the appropriate tool for the user's request.`;
 }

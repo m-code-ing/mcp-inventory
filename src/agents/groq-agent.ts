@@ -53,21 +53,7 @@ export class GroqInventoryAgent {
       return result;
     }
 
-    if (name === 'management') {
-      this.logger.mcpCall('management');
-      await this.mcpClient.connect();
-      const result = await this.mcpClient.callTool('management', args);
-      this.logger.mcpResponse(result);
-      this.logger.processComplete();
-      this.logger.finalAnswer();
-      return result;
-    }
 
-    if (name === 'search') {
-      this.logger.processWarning('Search not available in Groq agent');
-      this.logger.finalAnswer();
-      return 'Search functionality is not available in the Groq agent. Please use the OpenAI agent for search capabilities.';
-    }
 
     const _exhaustiveCheck: never = name;
     throw new Error(`Unhandled tool: ${_exhaustiveCheck}`);
@@ -82,12 +68,9 @@ export class GroqInventoryAgent {
 
 Available tools:
 - data_operations: Fetch fresh inventory data from Shopify and save to files
-- analytics: Perform analytics like counts, values, insights  
-- management: Manage inventory tasks like cleanup, archive, delete
+- analytics: Perform analytics like counts, values, insights
 
-IMPORTANT: When calling tools, use the exact JSON format. Present server responses directly without modification.
-
-Note: Search functionality is not available in this agent.`;
+IMPORTANT: When calling tools, use the exact JSON format. Present server responses directly without modification.`;
 
       // Create messages for Groq
       const messages = [{ role: 'system', content: systemPrompt }, ...this.conversationHistory];
@@ -95,7 +78,7 @@ Note: Search functionality is not available in this agent.`;
       const response = await this.groq.chat.completions.create({
         model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
         messages: messages as any,
-        tools: getOpenAITools().filter((tool) => tool.function.name !== 'search'),
+        tools: getOpenAITools(),
         tool_choice: 'auto',
         temperature: 0.1,
       });
