@@ -1,12 +1,14 @@
+import { Platform, ProductStatus } from '../services/validation-service';
+
 export interface Product {
   id: string;
   title: string;
   sku?: string;
   quantity: number;
   price: number;
-  platform: 'shopify' | 'etsy';
+  platform: Platform;
   variant?: string;
-  status: string;
+  status: ProductStatus;
 }
 
 export enum ProductHeaders {

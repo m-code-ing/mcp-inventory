@@ -1,4 +1,5 @@
 import { Product, ProductHeaders } from '../shared/types';
+import { Platform, ProductStatus } from '../services/validation-service';
 import fs from 'fs';
 
 export class CSVExporter {
@@ -25,14 +26,14 @@ export class CSVExporter {
       .map((line) => {
         const values = this.parseCsvLine(line);
         return {
-          platform: values[0] as 'shopify' | 'etsy',
+          platform: values[0] as Platform,
           id: values[1],
           title: values[2],
           variant: values[3] || undefined,
           sku: values[4] || undefined,
           quantity: parseInt(values[5]) || 0,
           price: parseFloat(values[6]) || 0,
-          status: values[7],
+          status: values[7] as ProductStatus,
         };
       });
   }

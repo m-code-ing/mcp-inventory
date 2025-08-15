@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { Product } from '../shared/types';
+import { Platform, ProductStatus } from '../services/validation-service';
 
 export class ExcelExporter {
   async saveToExcel(products: Product[], filePath: string): Promise<void> {
@@ -46,14 +47,14 @@ export class ExcelExporter {
       if (rowNumber === 1) return; // Skip header
 
       const product: Product = {
-        platform: (row.getCell(1).value as string)?.toLowerCase() as 'shopify' | 'etsy',
+        platform: (row.getCell(1).value as string)?.toLowerCase() as Platform,
         id: row.getCell(2).value as string,
         title: row.getCell(3).value as string,
         sku: row.getCell(4).value as string,
         variant: (row.getCell(5).value as string) || undefined,
         quantity: Number(row.getCell(6).value) || 0,
         price: Number(row.getCell(7).value) || 0,
-        status: row.getCell(8).value as string,
+        status: row.getCell(8).value as ProductStatus,
       };
 
       products.push(product);

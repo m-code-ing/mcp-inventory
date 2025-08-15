@@ -6,8 +6,8 @@ import {
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { getMCPTools } from '../shared/tool-definitions';
-import { ValidationService } from '../shared/validation-service';
+import { getMCPTools } from '../services/tool-definition-service';
+import { ValidationService } from '../services/validation-service';
 import { handleToolCall } from './handlers';
 import { ExcelExporter } from '../helpers/excel';
 import fs from 'fs';

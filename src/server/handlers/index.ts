@@ -1,4 +1,4 @@
-import { InventoryToolName } from '../../shared/tool-definitions';
+import { InventoryToolName } from '../../services/validation-service';
 import { handleDataOperations } from './data-operations-handler';
 import { handleAnalytics } from './analytics-handler';
 

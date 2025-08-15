@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Product, EtsyListing } from '../shared/types';
+import { ProductStatus } from '../services/validation-service';
 
 export class EtsyClient {
   private baseUrl = 'https://openapi.etsy.com/v3/application';
@@ -35,7 +36,7 @@ export class EtsyClient {
           quantity: listing.quantity,
           price: parseFloat(listing.price),
           platform: 'etsy',
-          status: listing.state,
+          status: listing.state as ProductStatus,
         });
       }
 

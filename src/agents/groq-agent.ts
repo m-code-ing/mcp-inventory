@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { MCPClient } from './mcp-client';
-import { getOpenAITools, InventoryToolName } from '../shared/tool-definitions';
+import { getOpenAITools, InventoryToolName } from '../services/tool-definition-service';
 import { Logger } from '../shared/logger';
 import dotenv from 'dotenv';
 

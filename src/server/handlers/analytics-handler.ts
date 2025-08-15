@@ -1,7 +1,14 @@
 import { ExcelExporter } from '../../helpers/excel';
+import { Platform, ProductStatus, AnalysisType } from '../../services/validation-service';
 import fs from 'fs';
 
 type HandlerResponse = { content: Array<{ type: string; text: string }>; isError?: boolean };
+
+type Filters = {
+  status?: ProductStatus;
+  platform?: Platform;
+  threshold?: number;
+};
 
 export class AnalyticsHandler {
   private excelExporter: ExcelExporter;
@@ -25,7 +32,7 @@ export class AnalyticsHandler {
     return files.length > 0 ? `${activeDir}/${files[0]}` : null;
   }
 
-  async handle(args: any): Promise<HandlerResponse> {
+  async handle(args: { analysis_type: AnalysisType; filters?: Filters }): Promise<HandlerResponse> {
     const { analysis_type, filters = {} } = args;
 
     switch (analysis_type) {
@@ -49,7 +56,7 @@ export class AnalyticsHandler {
     }
   }
 
-  private async handleCount(filters: any): Promise<HandlerResponse> {
+  private async handleCount(filters: Filters): Promise<HandlerResponse> {
     try {
       const filePath = this.getLatestInventoryFile();
       if (!filePath) {
@@ -90,7 +97,7 @@ export class AnalyticsHandler {
     }
   }
 
-  private async handleLowStock(filters: any): Promise<HandlerResponse> {
+  private async handleLowStock(filters: Filters): Promise<HandlerResponse> {
     try {
       const threshold = filters.threshold || 5;
       const filePath = this.getLatestInventoryFile();
@@ -126,7 +133,7 @@ export class AnalyticsHandler {
     }
   }
 
-  private async handleValue(filters: any): Promise<HandlerResponse> {
+  private async handleValue(filters: Filters): Promise<HandlerResponse> {
     try {
       const filePath = this.getLatestInventoryFile();
 
@@ -167,7 +174,7 @@ export class AnalyticsHandler {
     }
   }
 
-  private async handleSummary(filters: any): Promise<HandlerResponse> {
+  private async handleSummary(filters: Filters): Promise<HandlerResponse> {
     try {
       const filePath = this.getLatestInventoryFile();
 
@@ -211,7 +218,9 @@ export class AnalyticsHandler {
   }
 }
 
-export async function handleAnalytics(args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
+export async function handleAnalytics(
+  args: any
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   const handler = new AnalyticsHandler();
   return handler.handle(args);
 }
