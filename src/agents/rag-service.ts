@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import fs from 'fs';
 import path from 'path';
-import { Product } from './types';
+import { Product } from '../shared/types';
 
 export class RAGService {
   private openai: OpenAI;

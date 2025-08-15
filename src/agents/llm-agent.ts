@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
-import { InventoryService } from './inventory-service';
-import { ExcelExporter } from './excel';
+import { InventoryService } from '../shared/inventory-service';
+import { ExcelExporter } from '../shared/excel';
 import { RAGService } from './rag-service';
 import fs from 'fs';
 import path from 'path';
