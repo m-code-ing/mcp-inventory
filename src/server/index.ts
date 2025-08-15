@@ -6,7 +6,8 @@ import {
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { getMCPTools, InventoryToolName, isValidToolName } from '../shared/tool-definitions';
+import { getMCPTools } from '../shared/tool-definitions';
+import { ValidationService } from '../shared/validation-service';
 import { handleToolCall } from './handlers';
 import { ExcelExporter } from '../helpers/excel';
 import fs from 'fs';
@@ -32,12 +33,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+  const validator = ValidationService.getInstance();
+  const { toolName, args: validatedArgs } = validator.validateToolCall(name, args);
 
-  if (!isValidToolName(name)) {
-    throw new Error(`Invalid tool name: ${name}`);
-  }
-
-  return await handleToolCall(name, args);
+  return await handleToolCall(toolName, validatedArgs);
 });
 
 server.setRequestHandler(ListResourcesRequestSchema, async () => {

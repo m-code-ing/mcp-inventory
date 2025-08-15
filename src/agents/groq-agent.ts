@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { MCPClient } from './mcp-client';
-import { getOpenAITools, InventoryToolName, isValidToolName } from '../shared/tool-definitions';
+import { getOpenAITools, InventoryToolName } from '../shared/tool-definitions';
 import { Logger } from '../shared/logger';
 import dotenv from 'dotenv';
 
@@ -23,40 +23,15 @@ export class GroqInventoryAgent {
   }
 
   private async executeTool(name: string, args: any): Promise<string> {
-    if (!isValidToolName(name)) {
-      throw new Error(`Invalid tool name: ${name}`);
-    }
-
-    return this.executeValidTool(name, args);
-  }
-
-  private async executeValidTool(name: InventoryToolName, args: any): Promise<string> {
-    this.logger.toolExecution(name, args);
-
-    if (name === 'data_operations') {
-      this.logger.mcpCall('data operations');
-      await this.mcpClient.connect();
-      const result = await this.mcpClient.callTool('data_operations', args);
-      this.logger.mcpResponse(result);
-      this.logger.processComplete();
-      this.logger.finalAnswer();
-      return result;
-    }
-
-    if (name === 'analytics') {
-      this.logger.mcpCall('analytics');
-      await this.mcpClient.connect();
-      const result = await this.mcpClient.callTool('analytics', args);
-      this.logger.mcpResponse(result);
-      this.logger.processComplete();
-      this.logger.finalAnswer();
-      return result;
-    }
-
-
-
-    const _exhaustiveCheck: never = name;
-    throw new Error(`Unhandled tool: ${_exhaustiveCheck}`);
+    const toolName = name as InventoryToolName;
+    this.logger.toolExecution(toolName, args);
+    this.logger.mcpCall(toolName);
+    await this.mcpClient.connect();
+    const result = await this.mcpClient.callTool(toolName, args);
+    this.logger.mcpResponse(result);
+    this.logger.processComplete();
+    this.logger.finalAnswer();
+    return result;
   }
 
   async chat(message: string): Promise<string> {
