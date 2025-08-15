@@ -1,6 +1,4 @@
 import OpenAI from 'openai';
-import { InventoryService } from '../shared/inventory-service';
-import { ExcelExporter } from '../helpers/excel';
 import { RAGService } from './rag-service';
 import fs from 'fs';
 import path from 'path';
@@ -10,8 +8,6 @@ dotenv.config();
 
 export class InventoryLLMAgent {
   private openai: OpenAI;
-  private inventoryService: InventoryService;
-  private excelExporter: ExcelExporter;
   private ragService: RAGService;
   private assistantId: string | null = null;
   private threadId: string | null = null;
@@ -21,8 +17,6 @@ export class InventoryLLMAgent {
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    this.inventoryService = new InventoryService(process.env.SHOPIFY_STORE!, process.env.SHOPIFY_ACCESS_TOKEN!);
-    this.excelExporter = new ExcelExporter();
     this.ragService = new RAGService();
   }
 
@@ -55,22 +49,10 @@ export class InventoryLLMAgent {
       instructions: `You are an inventory management assistant for a Shopify store. Your primary role is to fetch and sync inventory data. For any questions about products, inventory analysis, or searches, always use the search_inventory tool which provides accurate semantic search results.
 
 Available tools:
-- sync_inventory: Fetch fresh inventory data from Shopify and index for search
 - search_inventory: Search and analyze inventory using natural language queries
 
 For ANY inventory questions (counts, analysis, specific products, etc.), always use search_inventory.`,
       tools: [
-        {
-          type: 'function',
-          function: {
-            name: 'sync_inventory',
-            description: 'Fetch fresh inventory data from Shopify and save to timestamped Excel file',
-            parameters: {
-              type: 'object',
-              properties: {},
-            },
-          },
-        },
         {
           type: 'function',
           function: {
@@ -116,72 +98,7 @@ For ANY inventory questions (counts, analysis, specific products, etc.), always 
     console.log(`🚀 Executing tool: ${name}`);
     console.log(`📝 Arguments:`, args);
 
-    if (name === 'sync_inventory') {
-      const dir = './shopify/inventory';
-      const extsExcel = new Set(['.xlsx', '.xls']);
-      const mdExt = '.md';
-      const oneDayMs = 24 * 60 * 60 * 1000;
 
-      // 1) Read files
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      const files = fs
-        .readdirSync(dir)
-        .map((fn) => {
-          const fp = path.join(dir, fn);
-          const st = fs.statSync(fp);
-          return st.isFile() ? { fp, ext: path.extname(fp).toLowerCase(), mtimeMs: st.mtimeMs } : null;
-        })
-        .filter(Boolean) as { fp: string; ext: string; mtimeMs: number }[];
-
-      // Nothing there → sync
-      if (files.length === 0) {
-        console.log('🔄 No files found. Fetching fresh inventory...');
-        const result = await this.inventoryService.syncInventory();
-        await this.ragService.updateInventory(result.markdownPath); // should be .md
-
-        if (!result.markdownPath.endsWith('.md')) {
-          throw new Error('Expected .md file path for inventory update');
-        }
-
-        return `Successfully synced ${result.productCount} products and updated search index`;
-      }
-
-      // 2) Pick latest .md and latest Excel; delete the rest
-      const mdFiles = files.filter((f) => f.ext === mdExt).sort((a, b) => b.mtimeMs - a.mtimeMs);
-      const xlFiles = files.filter((f) => extsExcel.has(f.ext)).sort((a, b) => b.mtimeMs - a.mtimeMs);
-
-      const keepMd = mdFiles[0]; // may be undefined
-      const keepXl = xlFiles[0]; // may be undefined
-      const keepSet = new Set([keepMd?.fp, keepXl?.fp].filter(Boolean) as string[]);
-
-      console.log('🗑️ Cleaning up inventory files (keep latest .md and latest Excel)...');
-      for (const f of files) {
-        if (!keepSet.has(f.fp)) {
-          try {
-            fs.unlinkSync(f.fp);
-          } catch {
-            // Ignore deletion errors
-          }
-        }
-      }
-
-      // 3) Determine freshness using the NEWEST of the kept files
-      const newestKept = [keepMd, keepXl].filter(Boolean).sort((a, b) => b!.mtimeMs - a!.mtimeMs)[0];
-      const ageMs = newestKept ? Date.now() - newestKept.mtimeMs : Infinity;
-
-      if (ageMs < oneDayMs && keepMd) {
-        console.log('📅 Using existing inventory (less than 1 day old)');
-        await this.ragService.updateInventory(keepMd.fp); // index latest .md
-        const hours = Math.round(ageMs / (60 * 60 * 1000));
-        return `Using existing inventory data (${hours} hours old)`;
-      }
-
-      // 4) Stale or missing .md → fetch fresh and index
-      console.log('🔄 Fetching fresh inventory data...');
-      const result = await this.inventoryService.syncInventory(); // produce fresh .md + excel
-      await this.ragService.updateInventory(result.markdownPath); // index fresh .md
-      return `Successfully synced ${result.productCount} products and updated search index`;
-    }
 
     if (name === 'search_inventory') {
       const query = args.query;
@@ -190,16 +107,7 @@ For ANY inventory questions (counts, analysis, specific products, etc.), always 
 
       // Check if sync is required
       if (results.startsWith('SYNC_REQUIRED:')) {
-        console.log('🔄 Auto-syncing inventory...');
-        await this.executeTool('sync_inventory', {});
-        console.log('✅ Sync completed, retrying search...');
-
-        // Retry the search
-        const retryResults = await this.ragService.searchProducts(query);
-        console.log('\n' + '-'.repeat(50));
-        console.log('✅ MAIN AGENT TOOL COMPLETED');
-        console.log('-'.repeat(50));
-        return retryResults;
+        return 'Please sync inventory first using the MCP server sync_inventory tool.';
       }
 
       console.log('\n' + '-'.repeat(50));
