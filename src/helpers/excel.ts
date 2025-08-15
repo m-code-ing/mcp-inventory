@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { Product } from './types';
+import { Product } from '../shared/types';
 
 export class ExcelExporter {
   async saveToExcel(products: Product[], filePath: string): Promise<void> {

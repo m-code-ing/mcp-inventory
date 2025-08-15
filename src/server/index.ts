@@ -7,7 +7,7 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { InventoryService } from '../shared/inventory-service';
-import { ExcelExporter } from '../shared/excel';
+import { ExcelExporter } from '../helpers/excel';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';

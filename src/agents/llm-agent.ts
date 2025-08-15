@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { InventoryService } from '../shared/inventory-service';
-import { ExcelExporter } from '../shared/excel';
+import { ExcelExporter } from '../helpers/excel';
 import { RAGService } from './rag-service';
 import fs from 'fs';
 import path from 'path';
@@ -136,12 +136,12 @@ For ANY inventory questions (counts, analysis, specific products, etc.), always 
       // Nothing there → sync
       if (files.length === 0) {
         console.log('🔄 No files found. Fetching fresh inventory...');
-          const result = await this.inventoryService.syncInventory();
-          await this.ragService.updateInventory(result.markdownPath); // should be .md
+        const result = await this.inventoryService.syncInventory();
+        await this.ragService.updateInventory(result.markdownPath); // should be .md
 
-          if (!result.markdownPath.endsWith('.md')) {
-            throw new Error('Expected .md file path for inventory update');
-          }
+        if (!result.markdownPath.endsWith('.md')) {
+          throw new Error('Expected .md file path for inventory update');
+        }
 
         return `Successfully synced ${result.productCount} products and updated search index`;
       }
@@ -157,11 +157,11 @@ For ANY inventory questions (counts, analysis, specific products, etc.), always 
       console.log('🗑️ Cleaning up inventory files (keep latest .md and latest Excel)...');
       for (const f of files) {
         if (!keepSet.has(f.fp)) {
-            try {
-              fs.unlinkSync(f.fp);
-            } catch {
-              // Ignore deletion errors
-            }
+          try {
+            fs.unlinkSync(f.fp);
+          } catch {
+            // Ignore deletion errors
+          }
         }
       }
 

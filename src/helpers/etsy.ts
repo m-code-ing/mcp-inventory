@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Product, EtsyListing } from './types';
+import { Product, EtsyListing } from '../shared/types';
 
 export class EtsyClient {
   private baseUrl = 'https://openapi.etsy.com/v3/application';

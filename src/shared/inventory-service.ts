@@ -1,6 +1,6 @@
-import { ShopifyClient } from './shopify';
-import { EtsyClient } from './etsy';
-import { ExcelExporter } from './excel';
+import { ShopifyClient } from '../clients/shopify';
+import { EtsyClient } from '../helpers/etsy';
+import { ExcelExporter } from '../helpers/excel';
 import { MarkdownExporter } from './markdown';
 import { Product } from './types';
 import fs from 'fs';

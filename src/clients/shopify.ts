@@ -1,5 +1,5 @@
 import { createAdminApiClient } from '@shopify/admin-api-client';
-import { Product } from './types';
+import { Product } from '../shared/types';
 
 export class ShopifyClient {
   private client: ReturnType<typeof createAdminApiClient>;

@@ -1,13 +1,16 @@
-import { Product, ProductHeaders } from './types';
+import { Product, ProductHeaders } from '../shared/types';
 import fs from 'fs';
 
 export class CSVExporter {
   async saveToCsv(products: Product[], filePath: string): Promise<void> {
     const headers = Object.values(ProductHeaders).join(',') + '\n';
-    const rows = products.map(product => 
-      `${product.platform},"${product.id}","${product.title}","${product.variant || ''}","${product.sku || ''}",${product.quantity},${product.price},"${product.status}"`
-    ).join('\n');
-    
+    const rows = products
+      .map(
+        (product) =>
+          `${product.platform},"${product.id}","${product.title}","${product.variant || ''}","${product.sku || ''}",${product.quantity},${product.price},"${product.status}"`
+      )
+      .join('\n');
+
     fs.writeFileSync(filePath, headers + rows);
   }
 
@@ -15,10 +18,11 @@ export class CSVExporter {
     const content = fs.readFileSync(filePath, 'utf-8');
     const lines = content.split('\n');
     const headers = lines[0].split(',');
-    
-    return lines.slice(1)
-      .filter(line => line.trim())
-      .map(line => {
+
+    return lines
+      .slice(1)
+      .filter((line) => line.trim())
+      .map((line) => {
         const values = this.parseCsvLine(line);
         return {
           platform: values[0] as 'shopify' | 'etsy',
@@ -28,7 +32,7 @@ export class CSVExporter {
           sku: values[4] || undefined,
           quantity: parseInt(values[5]) || 0,
           price: parseFloat(values[6]) || 0,
-          status: values[7]
+          status: values[7],
         };
       });
   }
@@ -37,10 +41,10 @@ export class CSVExporter {
     const result: string[] = [];
     let current = '';
     let inQuotes = false;
-    
+
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
-      
+
       if (char === '"') {
         inQuotes = !inQuotes;
       } else if (char === ',' && !inQuotes) {
@@ -50,7 +54,7 @@ export class CSVExporter {
         current += char;
       }
     }
-    
+
     result.push(current.trim());
     return result;
   }
