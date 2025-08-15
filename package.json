@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "node dist/server/index.js",
     "dev": "ts-node src/index.ts",
-    "agent": "npm run build && node dist/agents/cli.js",
+
     "groq": "npm run build && node dist/agents/groq-cli.js",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
