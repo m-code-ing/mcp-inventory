@@ -1,11 +1,9 @@
-// Type-safe tool names
+// Type-safe tool names organized by categories
 export type InventoryToolName =
-  | 'sync_inventory'
-  | 'read_inventory'
-  | 'count_products'
-  | 'get_low_stock'
-  | 'calculate_inventory_value'
-  | 'search_inventory';
+  | 'data_operations'    // sync, read, export
+  | 'analytics'          // count, calculate, analyze
+  | 'search'             // search, filter, find
+  | 'management';        // update, delete, archive
 
 export interface ToolDefinition {
   name: InventoryToolName;
@@ -18,87 +16,123 @@ export interface ToolDefinition {
 }
 
 export const INVENTORY_TOOLS: Record<InventoryToolName, ToolDefinition> = {
-  sync_inventory: {
-    name: 'sync_inventory',
-    description: 'Fetch fresh inventory data from Shopify and save to files',
-    parameters: {
-      type: 'object',
-      properties: {},
-    },
-  },
-
-  read_inventory: {
-    name: 'read_inventory',
-    description: 'Get deterministic inventory summary with exact counts and statistics',
+  data_operations: {
+    name: 'data_operations',
+    description: 'Handle data operations: sync from Shopify, read inventory files, export to different formats',
     parameters: {
       type: 'object',
       properties: {
+        operation: {
+          type: 'string',
+          enum: ['sync', 'read', 'export'],
+          description: 'Type of data operation to perform',
+        },
+        format: {
+          type: 'string',
+          enum: ['excel', 'csv', 'json'],
+          description: 'Format for export operations (optional)',
+        },
         file_path: {
           type: 'string',
-          description: 'Path to inventory file (optional)',
+          description: 'File path for read operations (optional)',
         },
       },
+      required: ['operation'],
     },
   },
 
-  count_products: {
-    name: 'count_products',
-    description: 'Get exact product counts by status, platform, or other criteria',
+  analytics: {
+    name: 'analytics',
+    description: 'Perform analytics: count products, calculate values, analyze stock levels, get insights',
     parameters: {
       type: 'object',
       properties: {
-        status: {
+        analysis_type: {
           type: 'string',
-          description: 'Filter by status (active, draft, etc.)',
+          enum: ['count', 'value', 'low_stock', 'summary'],
+          description: 'Type of analysis to perform',
         },
-        platform: {
-          type: 'string',
-          description: 'Filter by platform (shopify, etsy)',
+        filters: {
+          type: 'object',
+          properties: {
+            status: {
+              type: 'string',
+              description: 'Filter by product status',
+            },
+            platform: {
+              type: 'string',
+              description: 'Filter by platform',
+            },
+            threshold: {
+              type: 'number',
+              description: 'Threshold for low stock analysis',
+            },
+          },
         },
       },
+      required: ['analysis_type'],
     },
   },
 
-  get_low_stock: {
-    name: 'get_low_stock',
-    description: 'Get products with low stock (quantity below threshold)',
-    parameters: {
-      type: 'object',
-      properties: {
-        threshold: {
-          type: 'number',
-          description: 'Stock threshold (default: 5)',
-        },
-      },
-    },
-  },
-
-  calculate_inventory_value: {
-    name: 'calculate_inventory_value',
-    description: 'Calculate total inventory value with optional filters',
-    parameters: {
-      type: 'object',
-      properties: {
-        status: {
-          type: 'string',
-          description: 'Filter by status (optional)',
-        },
-      },
-    },
-  },
-
-  search_inventory: {
-    name: 'search_inventory',
-    description: 'Search and analyze inventory using natural language queries',
+  search: {
+    name: 'search',
+    description: 'Search and filter inventory using natural language queries or specific criteria',
     parameters: {
       type: 'object',
       properties: {
         query: {
           type: 'string',
-          description: 'Search query for products',
+          description: 'Natural language search query',
+        },
+        filters: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              description: 'Filter by product title',
+            },
+            sku: {
+              type: 'string',
+              description: 'Filter by SKU',
+            },
+            price_range: {
+              type: 'object',
+              properties: {
+                min: { type: 'number' },
+                max: { type: 'number' },
+              },
+            },
+          },
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of results (default: 10)',
         },
       },
-      required: ['query'],
+    },
+  },
+
+  management: {
+    name: 'management',
+    description: 'Manage inventory: update product info, archive old data, delete files',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['update', 'archive', 'delete', 'cleanup'],
+          description: 'Management action to perform',
+        },
+        target: {
+          type: 'string',
+          description: 'Target for the action (product ID, file path, etc.)',
+        },
+        data: {
+          type: 'object',
+          description: 'Data for update operations',
+        },
+      },
+      required: ['action'],
     },
   },
 };
@@ -140,12 +174,10 @@ export function getToolInstructions(): string {
 ${toolList}
 
 ALWAYS use the appropriate tool for user requests:
-- For syncing: use sync_inventory
-- For general summaries: use read_inventory
-- For specific counts: use count_products
-- For low stock queries: use get_low_stock
-- For value calculations: use calculate_inventory_value
-- For product searches: use search_inventory
+- For data operations (sync, read, export): use data_operations
+- For analytics (counts, values, insights): use analytics
+- For searching and filtering: use search
+- For management tasks (update, archive, delete): use management
 
 Never refuse to use tools - always call the appropriate tool for the user's request.`;
 }

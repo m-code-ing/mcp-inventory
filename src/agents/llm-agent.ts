@@ -29,7 +29,9 @@ export class InventoryLLMAgent {
       name: 'Inventory Management Assistant',
       instructions: `You are an inventory management assistant for a Shopify store. You have access to powerful tools for inventory operations.
 
-${getToolInstructions()}`,
+${getToolInstructions()}
+
+IMPORTANT: When you receive "MCP Server Response:" from a tool, present that exact data to the user without modification or interpretation. Do not add fictional product names or details.`,
       tools: getOpenAITools(),
       model: 'gpt-4',
     };
@@ -92,54 +94,40 @@ ${getToolInstructions()}`,
     console.log(`🚀 Executing tool: ${name}`);
     console.log(`📝 Arguments:`, args);
 
-    if (name === 'sync_inventory') {
-      console.log('🔗 Calling MCP server sync_inventory...');
+    if (name === 'data_operations') {
+      console.log('🔗 Calling MCP server data_operations...');
       await this.mcpClient.connect();
-      const result = await this.mcpClient.callTool('sync_inventory');
-      console.log('✅ MCP sync completed');
+      const result = await this.mcpClient.callTool('data_operations', args);
+      console.log('📊 MCP Server Result:', result);
+      console.log('✅ MCP data operation completed');
+      return `MCP Server Response: ${result}`;
+    }
+
+    if (name === 'analytics') {
+      console.log('🔗 Calling MCP server analytics...');
+      await this.mcpClient.connect();
+      const result = await this.mcpClient.callTool('analytics', args);
+      console.log('📊 MCP Server Result:', result);
+      console.log('✅ MCP analytics completed');
+      return `MCP Server Response: ${result}`;
+    }
+
+    if (name === 'management') {
+      console.log('🔗 Calling MCP server management...');
+      await this.mcpClient.connect();
+      const result = await this.mcpClient.callTool('management', args);
+      console.log('✅ MCP management completed');
       return result;
     }
 
-    if (name === 'read_inventory') {
-      console.log('🔗 Calling MCP server read_inventory...');
-      await this.mcpClient.connect();
-      const result = await this.mcpClient.callTool('read_inventory', args);
-      console.log('✅ MCP read completed');
-      return result;
-    }
-
-    if (name === 'count_products') {
-      console.log('🔗 Calling MCP server count_products...');
-      await this.mcpClient.connect();
-      const result = await this.mcpClient.callTool('count_products', args);
-      console.log('✅ MCP count completed');
-      return result;
-    }
-
-    if (name === 'get_low_stock') {
-      console.log('🔗 Calling MCP server get_low_stock...');
-      await this.mcpClient.connect();
-      const result = await this.mcpClient.callTool('get_low_stock', args);
-      console.log('✅ MCP low stock completed');
-      return result;
-    }
-
-    if (name === 'calculate_inventory_value') {
-      console.log('🔗 Calling MCP server calculate_inventory_value...');
-      await this.mcpClient.connect();
-      const result = await this.mcpClient.callTool('calculate_inventory_value', args);
-      console.log('✅ MCP value calculation completed');
-      return result;
-    }
-
-    if (name === 'search_inventory') {
-      const query = args.query;
+    if (name === 'search') {
+      const query = args.query || args.filters?.title || 'general search';
       console.log(`🔍 Delegating search to RAG agent: "${query}"`);
       const results = await this.ragService.searchProducts(query);
 
       // Check if sync is required
       if (results.startsWith('SYNC_REQUIRED:')) {
-        return 'Please sync inventory first using the MCP server sync_inventory tool.';
+        return 'Please sync inventory first using the data_operations tool with operation: sync.';
       }
 
       console.log('\n' + '-'.repeat(50));

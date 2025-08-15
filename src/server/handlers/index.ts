@@ -1,28 +1,22 @@
 import { InventoryToolName } from '../../shared/tool-definitions';
-import { handleSyncInventory } from './sync-handler';
-import { handleReadInventory } from './inventory-handler';
-import { handleCountProducts, handleGetLowStock, handleCalculateInventoryValue } from './analytics-handler';
+import { handleDataOperations } from './data-operations-handler';
+import { handleAnalytics } from './analytics-handler';
+import { handleSearch } from './search-handler';
+import { handleManagement } from './management-handler';
 
 export async function handleToolCall(name: InventoryToolName, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   switch (name) {
-    case 'sync_inventory':
-      return handleSyncInventory();
+    case 'data_operations':
+      return handleDataOperations(args);
     
-    case 'read_inventory':
-      return handleReadInventory(args);
+    case 'analytics':
+      return handleAnalytics(args);
     
-    case 'count_products':
-      return handleCountProducts(args);
+    case 'search':
+      return handleSearch(args);
     
-    case 'get_low_stock':
-      return handleGetLowStock(args);
-    
-    case 'calculate_inventory_value':
-      return handleCalculateInventoryValue(args);
-    
-    case 'search_inventory':
-      // This is handled by RAG service, not MCP server
-      throw new Error('search_inventory should be handled by RAG service');
+    case 'management':
+      return handleManagement(args);
     
     default:
       const _exhaustiveCheck: never = name;
