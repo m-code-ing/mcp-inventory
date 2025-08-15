@@ -26,7 +26,7 @@ export class GroqInventoryAgent {
     if (!isValidToolName(name)) {
       throw new Error(`Invalid tool name: ${name}`);
     }
-    
+
     return this.executeValidTool(name, args);
   }
 
@@ -90,15 +90,12 @@ IMPORTANT: When calling tools, use the exact JSON format. Present server respons
 Note: Search functionality is not available in this agent.`;
 
       // Create messages for Groq
-      const messages = [
-        { role: 'system', content: systemPrompt },
-        ...this.conversationHistory
-      ];
+      const messages = [{ role: 'system', content: systemPrompt }, ...this.conversationHistory];
 
       const response = await this.groq.chat.completions.create({
         model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
         messages: messages as any,
-        tools: getOpenAITools().filter(tool => tool.function.name !== 'search'),
+        tools: getOpenAITools().filter((tool) => tool.function.name !== 'search'),
         tool_choice: 'auto',
         temperature: 0.1,
       });
@@ -118,21 +115,18 @@ Note: Search functionality is not available in this agent.`;
         }
 
         // Add tool results to conversation and get final response
-        this.conversationHistory.push({ 
-          role: 'assistant', 
-          content: assistantMessage.content || 'Using tools...' 
+        this.conversationHistory.push({
+          role: 'assistant',
+          content: assistantMessage.content || 'Using tools...',
         });
-        this.conversationHistory.push({ 
-          role: 'user', 
-          content: `Tool results: ${toolResults}` 
+        this.conversationHistory.push({
+          role: 'user',
+          content: `Tool results: ${toolResults}`,
         });
 
         const finalResponse = await this.groq.chat.completions.create({
           model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...this.conversationHistory
-          ] as any,
+          messages: [{ role: 'system', content: systemPrompt }, ...this.conversationHistory] as any,
           temperature: 0.1,
         });
 
@@ -145,7 +139,6 @@ Note: Search functionality is not available in this agent.`;
       const content = assistantMessage.content || 'No response generated.';
       this.conversationHistory.push({ role: 'assistant', content });
       return content;
-
     } catch (error) {
       return `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`;
     }

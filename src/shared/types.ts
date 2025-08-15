@@ -17,10 +17,8 @@ export enum ProductHeaders {
   SKU = 'SKU',
   QUANTITY = 'Quantity',
   PRICE = 'Price',
-  STATUS = 'Status'
+  STATUS = 'Status',
 }
-
-
 
 export interface EtsyListing {
   listing_id: number;

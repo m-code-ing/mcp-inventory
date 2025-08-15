@@ -2,7 +2,7 @@ import chalk from 'chalk';
 
 export class Logger {
   private static instance: Logger;
-  
+
   static getInstance(): Logger {
     if (!Logger.instance) {
       Logger.instance = new Logger();

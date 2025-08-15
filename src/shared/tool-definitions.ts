@@ -1,9 +1,9 @@
 // Type-safe tool names organized by categories
 export type InventoryToolName =
-  | 'data_operations'    // sync, read, export
-  | 'analytics'          // count, calculate, analyze
-  | 'search'             // search, filter, find
-  | 'management';        // update, delete, archive
+  | 'data_operations' // sync, read, export
+  | 'analytics' // count, calculate, analyze
+  | 'search' // search, filter, find
+  | 'management'; // update, delete, archive
 
 export interface ToolDefinition {
   name: InventoryToolName;

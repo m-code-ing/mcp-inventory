@@ -8,7 +8,7 @@ async function main() {
   console.log('Type "exit" to quit\n');
 
   const agent = new OllamaInventoryAgent();
-  
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,

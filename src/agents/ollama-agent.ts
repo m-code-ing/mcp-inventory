@@ -25,7 +25,7 @@ export class OllamaInventoryAgent {
     if (!isValidToolName(name)) {
       throw new Error(`Invalid tool name: ${name}`);
     }
-    
+
     return this.executeValidTool(name, args);
   }
 
@@ -98,15 +98,12 @@ IMPORTANT: When calling tools, use the exact JSON format. Present server respons
 Note: Search functionality is not available in this agent. Use the OpenAI agent for search capabilities.`;
 
       // Create messages for Ollama
-      const messages = [
-        { role: 'system', content: systemPrompt },
-        ...this.conversationHistory
-      ];
+      const messages = [{ role: 'system', content: systemPrompt }, ...this.conversationHistory];
 
       const response = await this.ollama.chat.completions.create({
         model: process.env.OLLAMA_MODEL || 'llama3.1:8b',
         messages: messages as any,
-        tools: getOpenAITools().filter(tool => tool.function.name !== 'search'),
+        tools: getOpenAITools().filter((tool) => tool.function.name !== 'search'),
         tool_choice: 'auto',
         temperature: 0.1,
       });
@@ -126,21 +123,18 @@ Note: Search functionality is not available in this agent. Use the OpenAI agent 
         }
 
         // Add tool results to conversation and get final response
-        this.conversationHistory.push({ 
-          role: 'assistant', 
-          content: assistantMessage.content || 'Using tools...' 
+        this.conversationHistory.push({
+          role: 'assistant',
+          content: assistantMessage.content || 'Using tools...',
         });
-        this.conversationHistory.push({ 
-          role: 'user', 
-          content: `Tool results: ${toolResults}` 
+        this.conversationHistory.push({
+          role: 'user',
+          content: `Tool results: ${toolResults}`,
         });
 
         const finalResponse = await this.ollama.chat.completions.create({
           model: process.env.OLLAMA_MODEL || 'llama3.1:8b',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...this.conversationHistory
-          ] as any,
+          messages: [{ role: 'system', content: systemPrompt }, ...this.conversationHistory] as any,
           temperature: 0.1,
         });
 
@@ -153,7 +147,6 @@ Note: Search functionality is not available in this agent. Use the OpenAI agent 
       const content = assistantMessage.content || 'No response generated.';
       this.conversationHistory.push({ role: 'assistant', content });
       return content;
-
     } catch (error) {
       return `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`;
     }

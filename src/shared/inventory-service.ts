@@ -27,7 +27,7 @@ export class InventoryService {
   private manageInventoryFiles(): void {
     const activeDir = './shopify/inventory/active';
     const cachedDir = './shopify/inventory/cached';
-    
+
     // Create directories if they don't exist
     if (!fs.existsSync(activeDir)) {
       fs.mkdirSync(activeDir, { recursive: true });
@@ -35,7 +35,7 @@ export class InventoryService {
     if (!fs.existsSync(cachedDir)) {
       fs.mkdirSync(cachedDir, { recursive: true });
     }
-    
+
     // Move all files from active to cached
     const activeFiles = fs.readdirSync(activeDir);
     for (const file of activeFiles) {
@@ -54,7 +54,7 @@ export class InventoryService {
     try {
       // Move existing files to cached before fetching new data
       this.manageInventoryFiles();
-      
+
       const shopifyProducts = await this.shopifyClient.fetchInventory();
       // const etsyProducts = await this.etsyClient.fetchInventory(); // Disabled
 

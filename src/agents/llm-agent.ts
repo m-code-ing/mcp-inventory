@@ -44,7 +44,7 @@ IMPORTANT: When you receive "MCP Server Response:" from a tool, present that exa
     if (this.assistantId) return;
 
     const config = this.getAssistantConfig();
-    
+
     // List existing assistants and clean up old main assistants
     this.logger.cleanup('Cleaning up old main assistants...');
     const assistants = await this.openai.beta.assistants.list();
@@ -58,7 +58,7 @@ IMPORTANT: When you receive "MCP Server Response:" from a tool, present that exa
       this.assistantId = mainAssistants[0].id;
       await this.openai.beta.assistants.update(this.assistantId, config);
       this.logger.success(`Updated existing assistant: ${this.assistantId}`);
-      
+
       // Delete the rest
       for (let i = 1; i < mainAssistants.length; i++) {
         await this.openai.beta.assistants.delete(mainAssistants[i].id);
@@ -86,7 +86,7 @@ IMPORTANT: When you receive "MCP Server Response:" from a tool, present that exa
     if (!isValidToolName(name)) {
       throw new Error(`Invalid tool name: ${name}`);
     }
-    
+
     return this.executeValidTool(name, args);
   }
 
