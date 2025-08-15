@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { RAGService } from './rag-service';
+import { MCPClient } from './mcp-client';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -9,6 +10,7 @@ dotenv.config();
 export class InventoryLLMAgent {
   private openai: OpenAI;
   private ragService: RAGService;
+  private mcpClient: MCPClient;
   private assistantId: string | null = null;
   private threadId: string | null = null;
 
@@ -18,58 +20,64 @@ export class InventoryLLMAgent {
     });
 
     this.ragService = new RAGService();
+    this.mcpClient = new MCPClient();
   }
 
-  private async initializeAssistant(): Promise<void> {
-    if (this.assistantId) return;
-
-    // List existing assistants and clean up old main assistants
-    console.log('🧹 Cleaning up old main assistants...');
-    const assistants = await this.openai.beta.assistants.list();
-    const mainAssistants = assistants.data.filter(
-      (a) => a.name === 'Inventory Management Assistant' && a.tools?.some((tool) => tool.type === 'function')
-    );
-
-    if (mainAssistants.length > 0) {
-      console.log(`🗑️ Found ${mainAssistants.length} old main assistants, keeping one and deleting others`);
-      // Keep the first one, delete the rest
-      this.assistantId = mainAssistants[0].id;
-      for (let i = 1; i < mainAssistants.length; i++) {
-        await this.openai.beta.assistants.delete(mainAssistants[i].id);
-        console.log(`🗑️ Deleted main assistant: ${mainAssistants[i].id}`);
-      }
-      console.log(`✅ Reusing existing main assistant: ${this.assistantId}`);
-      return;
-    }
-
-    // Create new assistant if none exists
-    console.log('🤖 Creating new main assistant...');
-    const assistant = await this.openai.beta.assistants.create({
+  private getAssistantConfig() {
+    return {
       name: 'Inventory Management Assistant',
-      instructions: `You are an inventory management assistant for a Shopify store. Your primary role is to fetch and sync inventory data. For any questions about products, inventory analysis, or searches, always use the search_inventory tool which provides accurate semantic search results.
+      instructions: `You are an inventory management assistant for a Shopify store. You have access to powerful tools for inventory operations.
 
 Available tools:
+- sync_inventory: Fetch fresh inventory data from Shopify and save to files
+- read_inventory: Get deterministic inventory summary with exact counts and statistics
 - search_inventory: Search and analyze inventory using natural language queries
 
-For ANY inventory questions (counts, analysis, specific products, etc.), always use search_inventory.`,
+ALWAYS use the appropriate tool for user requests:
+- For syncing: use sync_inventory
+- For exact counts/totals: use read_inventory  
+- For product searches: use search_inventory
+
+Never refuse to use tools - always call the appropriate tool for the user's request.`,
       tools: [
         {
-          type: 'function',
+          type: 'function' as const,
+          function: {
+            name: 'sync_inventory',
+            description: 'Fetch fresh inventory data from Shopify and save to files',
+            parameters: {
+              type: 'object',
+              properties: {},
+            },
+          },
+        },
+        {
+          type: 'function' as const,
+          function: {
+            name: 'read_inventory',
+            description: 'Get deterministic inventory summary with exact counts, totals, and statistics',
+            parameters: {
+              type: 'object',
+              properties: {
+                file_path: {
+                  type: 'string',
+                  description: 'Path to inventory file (optional)',
+                },
+              },
+            },
+          },
+        },
+        {
+          type: 'function' as const,
           function: {
             name: 'search_inventory',
-            description:
-              'Search and analyze inventory using natural language queries - handles all product questions, counts, analysis, and searches',
+            description: 'Search and analyze inventory using natural language queries',
             parameters: {
               type: 'object',
               properties: {
                 query: {
                   type: 'string',
-                  description:
-                    'Any inventory question or search query (e.g., "how many products?", "red shirts", "expensive items", "low stock products", "total value")',
-                },
-                limit: {
-                  type: 'number',
-                  description: 'Maximum number of results to return (default: 10)',
+                  description: 'Search query for products',
                 },
               },
               required: ['query'],
@@ -78,7 +86,39 @@ For ANY inventory questions (counts, analysis, specific products, etc.), always 
         },
       ],
       model: 'gpt-4',
-    });
+    };
+  }
+
+  private async initializeAssistant(): Promise<void> {
+    if (this.assistantId) return;
+
+    const config = this.getAssistantConfig();
+    
+    // List existing assistants and clean up old main assistants
+    console.log('🧹 Cleaning up old main assistants...');
+    const assistants = await this.openai.beta.assistants.list();
+    const mainAssistants = assistants.data.filter(
+      (a) => a.name === 'Inventory Management Assistant' && a.tools?.some((tool) => tool.type === 'function')
+    );
+
+    if (mainAssistants.length > 0) {
+      console.log(`🔄 Found ${mainAssistants.length} existing assistants, updating first one and deleting others`);
+      // Update the first one with latest config
+      this.assistantId = mainAssistants[0].id;
+      await this.openai.beta.assistants.update(this.assistantId, config);
+      console.log(`✅ Updated existing assistant: ${this.assistantId}`);
+      
+      // Delete the rest
+      for (let i = 1; i < mainAssistants.length; i++) {
+        await this.openai.beta.assistants.delete(mainAssistants[i].id);
+        console.log(`🗑️ Deleted duplicate assistant: ${mainAssistants[i].id}`);
+      }
+      return;
+    }
+
+    // Create new assistant if none exists
+    console.log('🤖 Creating new main assistant...');
+    const assistant = await this.openai.beta.assistants.create(config);
 
     this.assistantId = assistant.id;
     console.log(`✅ Main assistant created: ${assistant.id}`);
@@ -98,7 +138,21 @@ For ANY inventory questions (counts, analysis, specific products, etc.), always 
     console.log(`🚀 Executing tool: ${name}`);
     console.log(`📝 Arguments:`, args);
 
+    if (name === 'sync_inventory') {
+      console.log('🔗 Calling MCP server sync_inventory...');
+      await this.mcpClient.connect();
+      const result = await this.mcpClient.callTool('sync_inventory');
+      console.log('✅ MCP sync completed');
+      return result;
+    }
 
+    if (name === 'read_inventory') {
+      console.log('🔗 Calling MCP server read_inventory...');
+      await this.mcpClient.connect();
+      const result = await this.mcpClient.callTool('read_inventory', args);
+      console.log('✅ MCP read completed');
+      return result;
+    }
 
     if (name === 'search_inventory') {
       const query = args.query;

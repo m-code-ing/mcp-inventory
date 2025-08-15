@@ -24,6 +24,27 @@ export class InventoryService {
     this.markdownExporter = new MarkdownExporter();
   }
 
+  private manageInventoryFiles(): void {
+    const activeDir = './shopify/inventory/active';
+    const cachedDir = './shopify/inventory/cached';
+    
+    // Create directories if they don't exist
+    if (!fs.existsSync(activeDir)) {
+      fs.mkdirSync(activeDir, { recursive: true });
+    }
+    if (!fs.existsSync(cachedDir)) {
+      fs.mkdirSync(cachedDir, { recursive: true });
+    }
+    
+    // Move all files from active to cached
+    const activeFiles = fs.readdirSync(activeDir);
+    for (const file of activeFiles) {
+      const sourcePath = `${activeDir}/${file}`;
+      const destPath = `${cachedDir}/${file}`;
+      fs.renameSync(sourcePath, destPath);
+    }
+  }
+
   async syncInventory(): Promise<{
     success: boolean;
     productCount: number;
@@ -31,20 +52,19 @@ export class InventoryService {
     markdownPath: string;
   }> {
     try {
+      // Move existing files to cached before fetching new data
+      this.manageInventoryFiles();
+      
       const shopifyProducts = await this.shopifyClient.fetchInventory();
       // const etsyProducts = await this.etsyClient.fetchInventory(); // Disabled
 
       const allProducts = shopifyProducts; // Only Shopify for now
 
-      // Create directory and timestamped filename
-      const dir = './shopify/inventory';
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-
+      // Save new files to active directory
+      const activeDir = './shopify/inventory/active';
       const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-      const excelPath = `${dir}/inventory_${timestamp}.xlsx`;
-      const markdownPath = `${dir}/inventory_${timestamp}.md`;
+      const excelPath = `${activeDir}/inventory_${timestamp}.xlsx`;
+      const markdownPath = `${activeDir}/inventory_${timestamp}.md`;
 
       await this.excelExporter.saveToExcel(allProducts, excelPath);
       await this.markdownExporter.saveToMarkdown(allProducts, markdownPath);
